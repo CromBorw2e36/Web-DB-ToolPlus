@@ -1,0 +1,109 @@
+@using ToolPlus.Common
+@using ToolPlus.Models.ToolEntity
+@inject IModuleContext Module
+@{
+    var bp = ViewData["Blueprint"] as Blueprint;
+    ViewData["Fill"] = true;
+    var graphJson = ViewData["GraphJson"] as string ?? "{}";
+    var icons = new[] { "i-panel", "i-users", "i-clock", "i-file", "i-star", "i-database", "i-table", "i-key" };
+}
+
+<div class="subbar">
+    <button type="button" class="icon-btn table-drawer-toggle" id="paletteToggle" title="Danh sách bảng" aria-label="Danh sách bảng">
+        <svg width="17" height="17"><use href="#i-panel" /></svg>
+    </button>
+
+    <input class="input" id="bpName" placeholder="Tên bản vẽ…" value="@bp?.Name" style="max-width:230px" />
+    <input class="input" id="bpDesc" placeholder="Mô tả ngắn…" value="@bp?.Description" style="max-width:280px" />
+
+    <select class="select" id="bpIcon" style="width:auto" aria-label="Icon">
+        @foreach (var ic in icons)
+        {
+            <option value="@ic" selected="@(bp?.Icon == ic)">@ic.Replace("i-", "")</option>
+        }
+    </select>
+
+    <label class="check" title="Hiện bản vẽ này trong menu trái">
+        <input type="checkbox" id="bpPinned" checked="@(bp?.Pinned ?? false)" /> Ghim menu
+    </label>
+
+    <div class="sep"></div>
+    <span class="hint" id="bpStat">0 bảng · 0 nối</span>
+
+    <div class="spacer" style="flex:1 1 auto"></div>
+
+    <button type="button" class="btn" id="btnFit" title="Xếp lại cho vừa khung">Vừa khung</button>
+    <button type="button" class="btn btn--primary" id="btnSave">
+        <svg width="14" height="14"><use href="#i-save" /></svg> Lưu
+    </button>
+    @if (bp != null)
+    {
+        <a class="btn" href="@Module.Url("/blueprint/chay/" + bp.Id)" title="Lưu trước rồi chạy để thấy thay đổi mới nhất">
+            <svg width="14" height="14"><use href="#i-play" /></svg> Chạy
+        </a>
+    }
+    <a class="btn btn--ghost" href="@Module.Url("/blueprint")">Danh sách</a>
+</div>
+
+<div class="panes">
+    <aside class="sidebar" id="palette">
+        <div class="sidebar-head">
+            <div class="search-wrap">
+                <svg width="14" height="14"><use href="#i-search" /></svg>
+                <input class="input" id="tableFilter" placeholder="Lọc bảng để thêm…" autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="sidebar-meta">
+                <span id="tableCount">Đang tải…</span>
+                <button type="button" class="btn btn--ghost" id="btnAddParam" style="height:22px;padding:0 6px">
+                    <svg width="12" height="12"><use href="#i-plus" /></svg> tham số
+                </button>
+            </div>
+        </div>
+        <div class="table-list" id="tableList"></div>
+    </aside>
+
+    <div class="canvas" id="canvas">
+        <div class="canvas-content" id="canvasContent">
+            <svg class="edges" id="edges"></svg>
+        </div>
+
+        <div class="canvas-empty" id="canvasEmpty">
+            <div class="empty">
+                <svg width="44" height="44"><use href="#i-panel" /></svg>
+                <h3>Canvas trống</h3>
+                <p>
+                    Bấm một bảng ở cột bên trái để thêm vào canvas. Kéo từ chấm bên phải của một cột
+                    sang chấm bên trái của cột khác để nối. Node <b>THAM SỐ</b> là chỗ dữ liệu đi vào.
+                </p>
+            </div>
+        </div>
+
+        <div class="canvas-zoom">
+            <button type="button" class="bp-btn" id="zoomOut" aria-label="Thu nhỏ">−</button>
+            <span id="zoomLabel">100%</span>
+            <button type="button" class="bp-btn" id="zoomIn" aria-label="Phóng to">+</button>
+            <button type="button" class="bp-btn" id="zoomReset" aria-label="Về mặc định">⟲</button>
+        </div>
+    </div>
+
+    <aside class="props" id="props" hidden>
+        <div class="props-head">
+            <svg width="15" height="15"><use href="#i-filter" /></svg>
+            <h3 id="propsTitle">Thuộc tính</h3>
+            <button type="button" class="bp-btn" id="propsClose" aria-label="Đóng">
+                <svg width="14" height="14"><use href="#i-x" /></svg>
+            </button>
+        </div>
+        <div class="props-body" id="propsBody"></div>
+    </aside>
+</div>
+
+@section Scripts {
+    <script>
+        window.BP_DATA = {
+            id: '@(bp?.Id.ToString() ?? "")',
+            graph: @Html.Raw(graphJson)
+        };
+    </script>
+    <script src="~/js/pages/blueprint-designer.js" asp-append-version="true"></script>
+}

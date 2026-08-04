@@ -1,0 +1,70 @@
+@using ToolPlus.Common
+@using ToolPlus.Models.ToolEntity
+@using ToolPlus.Services.Interface
+@inject IBlueprintService BlueprintSvc
+@inject IModuleContext Module
+@{
+    var path = Context.Request.Path.Value ?? "/";
+    var isAdmin = (ViewData["CurrentUser"] as ToolUser)?.IsAdmin ?? false;
+
+    // Pinned blueprints appear as pages of their own. This queries the local SQLite file, so it is cheap.
+    var pinned = new List<ToolPlus.Models.ToolEntity.Blueprint>();
+    try { pinned = await BlueprintSvc.ListPinnedAsync(); } catch { /* chưa có DB thì bỏ qua */ }
+}
+
+<nav class="nav" id="nav" aria-label="Menu chức năng">
+    <a class="nav-item" href="@Module.Url("/home/index")" title="Trang chủ"
+       aria-current="@(path.TrimEnd('/').Equals(Module.Url("").TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
+                       || path.StartsWith(Module.Url("/home/index"), StringComparison.OrdinalIgnoreCase) ? "page" : null)">
+        <svg width="16" height="16"><use href="#i-home" /></svg>
+        <span>Trang chủ</span>
+    </a>
+
+    @foreach (var group in MenuDefinition.VisibleFor(isAdmin))
+    {
+        <div class="nav-group">
+            <div class="nav-group-title">@group.Text</div>
+            @foreach (var item in group.Items)
+            {
+                if (item.Ready)
+                {
+                    <a class="nav-item" href="@Module.Url(item.Url)" title="@item.Text"
+                       aria-current="@(MenuDefinition.IsActive(item, path, Module.Current.Key) ? "page" : null)">
+                        <svg width="16" height="16"><use href="#@item.Icon" /></svg>
+                        <span>@item.Text</span>
+                    </a>
+                }
+                else
+                {
+                    <span class="nav-item nav-item--soon" title="Chưa làm — @item.Note">
+                        <svg width="16" height="16"><use href="#@item.Icon" /></svg>
+                        <span>@item.Text</span>
+                        <span class="badge">soon</span>
+                    </span>
+                }
+            }
+        </div>
+    }
+
+    @if (pinned.Count > 0)
+    {
+        <div class="nav-group">
+            <div class="nav-group-title">Đã ghim</div>
+            @foreach (var bp in pinned)
+            {
+                <a class="nav-item" href="@Module.Url("/blueprint/chay/" + bp.Id)" title="@bp.Name"
+                   aria-current="@(path.StartsWith(Module.Url("/blueprint/chay/" + bp.Id), StringComparison.OrdinalIgnoreCase) ? "page" : null)">
+                    <svg width="16" height="16"><use href="#@bp.Icon" /></svg>
+                    <span>@bp.Name</span>
+                </a>
+            }
+        </div>
+    }
+
+    <div class="nav-foot">
+        <button type="button" class="nav-item" id="navToggle" title="Thu gọn / mở rộng menu">
+            <svg width="16" height="16" id="navToggleIcon"><use href="#i-panel" /></svg>
+            <span>Thu gọn menu</span>
+        </button>
+    </div>
+</nav>

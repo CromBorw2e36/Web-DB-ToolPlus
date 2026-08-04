@@ -1,0 +1,91 @@
+@{
+    ViewData["Title"] = "Người dùng";
+}
+
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h1>Người dùng</h1>
+            <p>
+                Tài khoản dùng ToolPlus nằm trong SQLite riêng của công cụ, không dùng chung với ứng
+                dụng nghiệp vụ — nghĩa là <b>tài khoản bị khoá ở ứng dụng đó thì bên này không tự
+                khoá theo</b>. Đặt hạn dùng cho tài khoản thường để buộc rà lại định kỳ.
+            </p>
+        </div>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn--primary" id="btnAdd">
+            <svg width="14" height="14"><use href="#i-plus" /></svg> Thêm người dùng
+        </button>
+    </div>
+
+    <div class="card" style="padding:0;overflow:auto">
+        <table class="grid" id="userGrid">
+            <thead>
+                <tr>
+                    <th><div class="th">Tài khoản</div></th>
+                    <th><div class="th">Họ tên</div></th>
+                    <th><div class="th">Vai trò</div></th>
+                    <th><div class="th">Trạng thái</div></th>
+                    <th><div class="th">Hạn dùng</div></th>
+                    <th><div class="th">Quyền module</div></th>
+                    <th><div class="th">Đăng nhập lần cuối</div></th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="userBody"></tbody>
+        </table>
+    </div>
+</div>
+
+@* -------------------------------------------------------------- user modal *@
+<div class="modal" id="userModal">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+        <div class="modal-head">
+            <svg width="16" height="16"><use href="#i-users" /></svg>
+            <h3 id="userModalTitle">Thêm người dùng</h3>
+            <button type="button" class="icon-btn" id="userModalClose" aria-label="Đóng">
+                <svg width="15" height="15"><use href="#i-x" /></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)">
+                <div class="field">
+                    <label class="label" for="fUsername">Tài khoản</label>
+                    <input class="input" id="fUsername" autocapitalize="none" spellcheck="false" />
+                </div>
+                <div class="field">
+                    <label class="label" for="fFullName">Họ tên</label>
+                    <input class="input" id="fFullName" />
+                </div>
+                <div class="field">
+                    <label class="label" for="fPassword">Mật khẩu</label>
+                    <input class="input" id="fPassword" type="text" autocomplete="new-password" />
+                    <span class="hint" id="fPasswordHint">Tối thiểu 8 ký tự.</span>
+                </div>
+                <div class="field">
+                    <label class="label" for="fExpires">Hạn dùng</label>
+                    <input class="input" id="fExpires" type="date" />
+                    <span class="hint">Để trống = không hạn. Nên đặt hạn cho tài khoản thường.</span>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:var(--s4);margin-top:var(--s3)">
+                <label class="check"><input type="checkbox" id="fIsActive" checked /> Đang hoạt động</label>
+                <label class="check"><input type="checkbox" id="fIsAdmin" /> Quản trị (toàn quyền mọi module)</label>
+            </div>
+
+            <div class="section-title" style="margin-top:var(--s4)">Quyền theo module</div>
+            <div id="fModules" style="display:grid;gap:6px"></div>
+        </div>
+        <div class="modal-foot">
+            <span class="hint" id="userModalHint"></span>
+            <div class="spacer"></div>
+            <button type="button" class="btn" id="userModalCancel">Huỷ</button>
+            <button type="button" class="btn btn--primary" id="userModalSave">Lưu</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/user.js" asp-append-version="true"></script>
+}

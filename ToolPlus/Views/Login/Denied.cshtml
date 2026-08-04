@@ -1,0 +1,25 @@
+@using ToolPlus.Common
+@{
+    ViewData["Title"] = "Không có quyền";
+    Layout = "_LayoutBlank";
+    var message = ViewData["DeniedMessage"] as string;
+}
+
+<main class="login-page">
+    <div class="login-card">
+        <div class="brand">
+            <svg width="20" height="20"><use href="#i-database" /></svg>
+            <span>ToolPlus</span>
+        </div>
+        <h1 style="margin-top:var(--s4)">Không đủ quyền</h1>
+        <p class="sub">
+            @(message.IsEmpty() ? "Tài khoản của bạn chưa được cấp quyền cho phần này." : message)
+            Nhờ quản trị ToolPlus mở quyền ở trang Người dùng.
+        </p>
+
+        <div style="display:flex;gap:var(--s2)">
+            <a class="btn btn--block" href="/home/index">Về trang chủ</a>
+            <a class="btn btn--primary btn--block" href="/login/logout">Đăng nhập tài khoản khác</a>
+        </div>
+    </div>
+</main>

@@ -1,0 +1,114 @@
+@using ToolPlus.Common
+@{
+    ViewData["Title"] = "Đăng nhập";
+    Layout = "_LayoutBlank";
+    var opt = ViewData["Options"] as ToolPlusOptions;
+    var returnUrl = ViewData["ReturnUrl"] as string ?? "/";
+}
+
+<main class="login-page">
+    <div class="login-card">
+        <div class="brand">
+            <svg width="20" height="20"><use href="#i-database" /></svg>
+            <span>ToolPlus</span>
+        </div>
+        <h1>Đăng nhập</h1>
+        <p class="sub">Tài khoản riêng của ToolPlus, không dùng chung với ứng dụng nghiệp vụ</p>
+
+        <form class="login-form" id="loginForm" novalidate>
+            <input type="hidden" id="returnUrl" value="@returnUrl" />
+
+            <div class="login-alert" id="loginAlert" role="alert">
+                <svg width="15" height="15" style="flex:0 0 15px"><use href="#i-alert" /></svg>
+                <span id="loginAlertText"></span>
+            </div>
+
+            <div class="field">
+                <label class="label" for="username">Tài khoản</label>
+                <input class="input" id="username" name="username" autocomplete="username"
+                       autocapitalize="none" spellcheck="false" required autofocus />
+            </div>
+
+            <div class="field">
+                <label class="label" for="password">Mật khẩu</label>
+                <div class="pw-wrap">
+                    <input class="input" id="password" name="password" type="password"
+                           autocomplete="current-password" required />
+                    <button type="button" class="icon-btn" id="pwToggle" aria-label="Hiện mật khẩu">
+                        <svg width="16" height="16"><use href="#i-eye" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn--primary btn--lg btn--block" id="loginBtn">
+                <span>Đăng nhập</span>
+            </button>
+        </form>
+
+        <div class="login-foot">
+            @* The host-app link only appears when ToolPlus:HostApp:Url is configured *@
+            @if (opt?.HostApp.IsValid == true)
+            {
+                <a href="@opt.HostApp.Url" target="_blank" rel="noopener">
+                    Mở @(opt.HostApp.Name.IsEmpty() ? "ứng dụng nghiệp vụ" : opt.HostApp.Name)
+                </a>
+            }
+            else
+            {
+                <span></span>
+            }
+            <button type="button" class="icon-btn" id="themeToggle" title="Đổi sáng/tối" aria-label="Đổi sáng/tối">
+                <svg width="16" height="16" data-theme-icon><use href="#i-moon" /></svg>
+            </button>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        (function () {
+            var form = document.getElementById('loginForm');
+            var btn = document.getElementById('loginBtn');
+            var alertBox = document.getElementById('loginAlert');
+            var alertText = document.getElementById('loginAlertText');
+            var pw = document.getElementById('password');
+
+            document.getElementById('pwToggle').addEventListener('click', function () {
+                var show = pw.type === 'password';
+                pw.type = show ? 'text' : 'password';
+                this.querySelector('use').setAttribute('href', show ? '#i-eye-off' : '#i-eye');
+                this.setAttribute('aria-label', show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+                pw.focus();
+            });
+
+            function fail(message) {
+                alertText.textContent = message;
+                alertBox.dataset.show = 'true';
+            }
+
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                alertBox.dataset.show = 'false';
+
+                var username = document.getElementById('username').value.trim();
+                if (!username || !pw.value) { fail('Nhập đủ tài khoản và mật khẩu'); return; }
+
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner" style="width:15px;height:15px"></span><span>Đang kiểm tra…</span>';
+                try {
+                    var data = await TP.postForm('/login/authenticate', {
+                        username: username,
+                        password: pw.value,
+                        returnUrl: document.getElementById('returnUrl').value
+                    });
+                    location.href = (data && data.Url) || '/';
+                } catch (err) {
+                    fail(err.message);
+                    pw.select();
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>Đăng nhập</span>';
+                }
+            });
+        })();
+    </script>
+}

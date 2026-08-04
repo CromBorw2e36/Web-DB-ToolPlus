@@ -1,0 +1,111 @@
+@using ToolPlus.Common
+@using ToolPlus.Models.Blueprints
+@using ToolPlus.Models.ToolEntity
+@inject IModuleContext Module
+@{
+    var bp = ViewData["Blueprint"] as Blueprint;
+    var graph = ViewData["Graph"] as BlueprintGraph ?? new BlueprintGraph();
+    var opt = ViewData["Options"] as ToolPlusOptions;
+    ViewData["Fill"] = true;
+
+    // Ask only for parameters actually in use: linked to a column OR referenced by a {token} in a filter.
+    var askFor = graph.UsedParams();
+}
+
+<div class="subbar">
+    <svg width="15" height="15" style="color:var(--accent)"><use href="#@bp!.Icon" /></svg>
+    <strong style="font-size:13px">@bp.Name</strong>
+    @if (!bp.Description.IsEmpty())
+    {
+        <span class="hint">@bp.Description</span>
+    }
+    <div class="spacer" style="flex:1 1 auto"></div>
+    <span class="hint" id="runStat"></span>
+    <a class="btn btn--ghost" href="@Module.Url("/blueprint/ve/" + bp.Id)">
+        <svg width="14" height="14"><use href="#i-panel" /></svg> Sửa bản vẽ
+    </a>
+    <a class="btn btn--ghost" href="@Module.Url("/blueprint")">Danh sách</a>
+</div>
+
+<form class="runbar" id="runForm">
+    @if (askFor.Count == 0)
+    {
+        <span class="hint">
+            Bản vẽ này không có tham số nào được nối — bấm Chạy sẽ lấy dữ liệu theo điều kiện đặt sẵn trong bản vẽ.
+        </span>
+    }
+    else
+    {
+        foreach (var p in askFor)
+        {
+            <div class="field runfield">
+                <label class="label" for="p_@p.Key">
+                    @(p.Label.IsEmpty() ? p.Key : p.Label)
+                    @if (p.Required)
+                    {
+                        <span style="color:var(--danger)">*</span>
+                    }
+                </label>
+                <input class="input" id="p_@p.Key" data-key="@p.Key"
+                       type="@(p.Type == "date" ? "date" : p.Type == "month" ? "month" : p.Type == "int" ? "number" : "text")"
+                       value="@p.Default" placeholder="@p.Type" autocomplete="off" spellcheck="false" />
+            </div>
+        }
+    }
+
+    <button type="submit" class="btn btn--primary" id="btnRun">
+        <svg width="14" height="14"><use href="#i-play" /></svg> Chạy
+    </button>
+</form>
+
+@* Table of contents. Kept OUTSIDE the scroll area so it does not fight the sticky table headers. *@
+<div class="runindex" id="runIndex" hidden></div>
+
+<div class="run-results" id="runResults"></div>
+
+@* --------------------------------------------------------------- edit modal *@
+<div class="modal" id="editModal">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+        <div class="modal-head">
+            <svg width="16" height="16"><use href="#i-save" /></svg>
+            <h3 id="editTitle">Sửa bản ghi</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Đóng">
+                <svg width="15" height="15"><use href="#i-x" /></svg>
+            </button>
+        </div>
+        <div class="modal-body" id="editBody"></div>
+        <div class="modal-foot">
+            <span class="hint" id="editHint"></span>
+            <div class="spacer"></div>
+            <button type="button" class="btn" data-close>Huỷ</button>
+            <button type="button" class="btn btn--accent" id="editSave">Xem &amp; lưu</button>
+        </div>
+    </div>
+</div>
+
+@* --------------------------------------------------- diff confirmation modal *@
+<div class="modal" id="diffModal">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="diffTitle">
+        <div class="modal-head">
+            <svg width="16" height="16"><use href="#i-alert" /></svg>
+            <h3 id="diffTitle">Xác nhận cập nhật</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Đóng">
+                <svg width="15" height="15"><use href="#i-x" /></svg>
+            </button>
+        </div>
+        <div class="modal-body" id="diffBody"></div>
+        <div class="modal-foot">
+            <span class="hint">Chạy 1 câu UPDATE theo khoá chính, chỉ khi trúng đúng 1 dòng. Có ghi log.</span>
+            <div class="spacer"></div>
+            <button type="button" class="btn" data-close>Quay lại</button>
+            <button type="button" class="btn btn--accent" id="diffOk">Cập nhật</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        window.RUN_DATA = { id: '@bp.Id', allowEdit: @((opt?.AllowEdit ?? false) ? "true" : "false") };
+    </script>
+    <script src="~/js/pages/blueprint-run.js" asp-append-version="true"></script>
+}

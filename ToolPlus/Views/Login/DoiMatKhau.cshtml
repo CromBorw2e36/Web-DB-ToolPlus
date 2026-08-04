@@ -1,0 +1,92 @@
+@{
+    ViewData["Title"] = "Đổi mật khẩu";
+    Layout = "_LayoutBlank";
+    var forced = ViewData["Forced"] as bool? ?? false;
+}
+
+<main class="login-page">
+    <div class="login-card">
+        <div class="brand">
+            <svg width="20" height="20"><use href="#i-key" /></svg>
+            <span>ToolPlus</span>
+        </div>
+        <h1>Đổi mật khẩu</h1>
+        <p class="sub">
+            @(forced
+                ? "Mật khẩu hiện tại do quản trị đặt hộ — phải đổi trước khi dùng tiếp."
+                : "Đặt mật khẩu mới cho tài khoản ToolPlus của bạn.")
+        </p>
+
+        <form class="login-form" id="pwForm" novalidate>
+            <div class="login-alert" id="pwAlert" role="alert">
+                <svg width="15" height="15" style="flex:0 0 15px"><use href="#i-alert" /></svg>
+                <span id="pwAlertText"></span>
+            </div>
+
+            <div class="field">
+                <label class="label" for="oldPassword">Mật khẩu hiện tại</label>
+                <input class="input" id="oldPassword" type="password" autocomplete="current-password" required autofocus />
+            </div>
+
+            <div class="field">
+                <label class="label" for="newPassword">Mật khẩu mới</label>
+                <input class="input" id="newPassword" type="password" autocomplete="new-password" required />
+            </div>
+
+            <div class="field">
+                <label class="label" for="confirmPassword">Nhập lại mật khẩu mới</label>
+                <input class="input" id="confirmPassword" type="password" autocomplete="new-password" required />
+            </div>
+
+            <button type="submit" class="btn btn--primary btn--lg btn--block" id="pwBtn">
+                <span>Đổi mật khẩu</span>
+            </button>
+        </form>
+
+        <div class="login-foot">
+            <a href="/login/logout">Đăng xuất</a>
+            <button type="button" class="icon-btn" id="themeToggle" title="Đổi sáng/tối" aria-label="Đổi sáng/tối">
+                <svg width="16" height="16" data-theme-icon><use href="#i-moon" /></svg>
+            </button>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        (function () {
+            var form = document.getElementById('pwForm');
+            var btn = document.getElementById('pwBtn');
+            var alertBox = document.getElementById('pwAlert');
+            var alertText = document.getElementById('pwAlertText');
+
+            function fail(message) {
+                alertText.textContent = message;
+                alertBox.dataset.show = 'true';
+            }
+
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                alertBox.dataset.show = 'false';
+
+                var oldPw = document.getElementById('oldPassword').value;
+                var newPw = document.getElementById('newPassword').value;
+                var confirmPw = document.getElementById('confirmPassword').value;
+
+                if (!oldPw || !newPw) { fail('Nhập đủ mật khẩu hiện tại và mật khẩu mới'); return; }
+                if (newPw !== confirmPw) { fail('Hai ô mật khẩu mới không khớp nhau'); return; }
+
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner" style="width:15px;height:15px"></span><span>Đang lưu…</span>';
+                try {
+                    var data = await TP.post('/login/doimatkhauapi', { OldPassword: oldPw, NewPassword: newPw });
+                    location.href = (data && data.Url) || '/';
+                } catch (err) {
+                    fail(err.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>Đổi mật khẩu</span>';
+                }
+            });
+        })();
+    </script>
+}

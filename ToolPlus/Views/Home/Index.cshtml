@@ -1,0 +1,81 @@
+@using ToolPlus.Common
+@using ToolPlus.Models.ToolEntity
+@using ToolPlus.Services.Interface
+@inject IBlueprintService BlueprintSvc
+@inject IModuleContext Module
+@{
+    ViewData["Title"] = "Trang chủ";
+    var user = ViewData["CurrentUser"] as ToolUser;
+
+    var saved = new List<Blueprint>();
+    try { saved = await BlueprintSvc.ListAsync(); } catch { /* chưa có DB thì bỏ qua */ }
+}
+
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h1>Chào @(user?.FullName ?? user?.Username)</h1>
+            <p>
+                ToolPlus là chỗ xử lý các thao tác nhân sự hay làm sai cần sửa lại — khỏi phải
+                mở SSMS truy vết trực tiếp trên database. Việc tra cứu và sửa dữ liệu thì tự vẽ
+                bằng <b>bản vẽ</b>, không phải chờ ai code.
+            </p>
+        </div>
+        <div class="spacer"></div>
+        <a class="btn btn--primary" href="@Module.Url("/blueprint/ve")">
+            <svg width="14" height="14"><use href="#i-plus" /></svg> Vẽ bản mới
+        </a>
+    </div>
+
+    <div class="section-title">Bản vẽ của bạn</div>
+    @if (saved.Count == 0)
+    {
+        <div class="card">
+            <p>
+                Chưa có bản vẽ nào. Bản vẽ đầu tiên nên là cái bạn tra nhiều nhất — ví dụ
+                <code>tham số userId → sys_User.Ma → hr_NhanVien.Ma → cont_HopDong.MaNhanVien</code>.
+            </p>
+            <a class="btn btn--primary" href="@Module.Url("/blueprint/ve")" style="margin-top:var(--s3)">
+                <svg width="14" height="14"><use href="#i-plus" /></svg> Vẽ bản đầu tiên
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="cards">
+            @foreach (var bp in saved)
+            {
+                <a class="card" href="@Module.Url("/blueprint/chay/" + bp.Id)">
+                    <div class="card-top">
+                        <span class="card-icon"><svg width="15" height="15"><use href="#@bp.Icon" /></svg></span>
+                        <h3>@bp.Name</h3>
+                        @if (bp.Pinned)
+                        {
+                            <span class="badge badge--pk">ghim</span>
+                        }
+                        <svg width="15" height="15" style="color:var(--fg-subtle)"><use href="#i-play" /></svg>
+                    </div>
+                    <p>@(bp.Description.Length > 0 ? bp.Description : "(chưa có mô tả)")</p>
+                </a>
+            }
+        </div>
+    }
+
+    @foreach (var group in MenuDefinition.VisibleFor(user?.IsAdmin ?? false))
+    {
+        <div class="section-title">@group.Text</div>
+        <div class="cards">
+            @foreach (var item in group.Items)
+            {
+                <a class="card" href="@Module.Url(item.Url)">
+                    <div class="card-top">
+                        <span class="card-icon"><svg width="15" height="15"><use href="#@item.Icon" /></svg></span>
+                        <h3>@item.Text</h3>
+                        <svg width="15" height="15" style="color:var(--fg-subtle)"><use href="#i-right" /></svg>
+                    </div>
+                    <p>@item.Note</p>
+                </a>
+            }
+        </div>
+    }
+</div>

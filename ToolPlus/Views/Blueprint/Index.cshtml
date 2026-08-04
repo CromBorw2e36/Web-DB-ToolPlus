@@ -1,0 +1,109 @@
+@using ToolPlus.Common
+@using ToolPlus.Models.ToolEntity
+@inject IModuleContext Module
+@{
+    ViewData["Title"] = "Bản vẽ";
+    var list = ViewData["List"] as List<Blueprint> ?? new List<Blueprint>();
+}
+
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h1>Bản vẽ</h1>
+            <p>
+                Gắn bảng vào canvas, nối trường với trường, lưu lại để lần sau chỉ cần nhập tham số
+                và bấm chạy. Bản vẽ lưu trong SQLite riêng của công cụ, không đụng gì tới database
+                nghiệp vụ.
+            </p>
+        </div>
+        <div class="spacer"></div>
+        <a class="btn btn--primary" href="@Module.Url("/blueprint/ve")">
+            <svg width="14" height="14"><use href="#i-plus" /></svg> Vẽ bản mới
+        </a>
+    </div>
+
+    @if (list.Count == 0)
+    {
+        <div class="card" style="text-align:center;padding:var(--s6)">
+            <svg width="44" height="44" style="color:var(--border-strong)"><use href="#i-panel" /></svg>
+            <h3 style="margin-top:var(--s3)">Chưa có bản vẽ nào</h3>
+            <p style="margin:var(--s2) auto 0;max-width:46ch">
+                Bản vẽ đầu tiên nên là cái bạn tra nhiều nhất — ví dụ
+                <code>tham số maKH → Customer.Ma → Order.MaCustomer → OrderLine.MaOrder</code>.
+            </p>
+            <a class="btn btn--primary" href="@Module.Url("/blueprint/ve")" style="margin-top:var(--s4)">
+                <svg width="14" height="14"><use href="#i-plus" /></svg> Vẽ bản đầu tiên
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="cards">
+            @foreach (var bp in list)
+            {
+                <div class="card" data-id="@bp.Id">
+                    <div class="card-top">
+                        <span class="card-icon"><svg width="15" height="15"><use href="#@bp.Icon" /></svg></span>
+                        <h3>@bp.Name</h3>
+                        @if (bp.Pinned)
+                        {
+                            <span class="badge badge--pk">ghim</span>
+                        }
+                    </div>
+                    <p>@(bp.Description.Length > 0 ? bp.Description : "(chưa có mô tả)")</p>
+                    <p style="margin-top:var(--s2);color:var(--fg-subtle);font-size:11.5px">
+                        @bp.CreatedBy · @bp.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                        @(bp.ModifiedAt.HasValue ? " · sửa " + bp.ModifiedAt.Value.ToString("dd/MM HH:mm") : "")
+                    </p>
+                    <div style="display:flex;gap:var(--s2);margin-top:var(--s3);flex-wrap:wrap">
+                        <a class="btn btn--primary" href="@Module.Url("/blueprint/chay/" + bp.Id)">
+                            <svg width="13" height="13"><use href="#i-play" /></svg> Chạy
+                        </a>
+                        <a class="btn" href="@Module.Url("/blueprint/ve/" + bp.Id)">
+                            <svg width="13" height="13"><use href="#i-panel" /></svg> Sửa bản vẽ
+                        </a>
+                        <button type="button" class="btn btn--ghost" data-act="pin" data-pinned="@(bp.Pinned ? "1" : "0")">
+                            @(bp.Pinned ? "Bỏ ghim" : "Ghim menu")
+                        </button>
+                        <button type="button" class="btn btn--ghost" data-act="dup">Nhân bản</button>
+                        <div class="spacer" style="flex:1 1 auto"></div>
+                        <button type="button" class="btn btn--danger" data-act="del" title="Xoá bản vẽ">
+                            <svg width="13" height="13"><use href="#i-x" /></svg>
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelector('.cards')?.addEventListener('click', async function (e) {
+            var btn = e.target.closest('[data-act]');
+            if (!btn) return;
+
+            var card = btn.closest('.card');
+            var id = card.dataset.id;
+            var name = card.querySelector('h3').textContent;
+
+            try {
+                if (btn.dataset.act === 'del') {
+                    if (!confirm('Xoá bản vẽ "' + name + '"? Không lấy lại được.')) return;
+                    await TP.post('/blueprint/delete?id=' + id, {});
+                    card.remove();
+                    TP.toast('Đã xoá bản vẽ', 'ok');
+                } else if (btn.dataset.act === 'dup') {
+                    var copy = await TP.post('/blueprint/duplicate?id=' + id, {});
+                    location.href = '/blueprint/ve/' + copy.Id;
+                } else if (btn.dataset.act === 'pin') {
+                    var next = btn.dataset.pinned !== '1';
+                    await TP.post('/blueprint/pin?id=' + id + '&pinned=' + next, {});
+                    location.reload();
+                }
+            } catch (err) {
+                TP.toast(err.message, 'err');
+            }
+        });
+    </script>
+}

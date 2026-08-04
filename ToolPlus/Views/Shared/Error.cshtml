@@ -1,0 +1,23 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Lỗi";
+    Layout = "_LayoutBlank";
+}
+
+<main class="login-page">
+    <div class="login-card">
+        <div class="brand" style="justify-content:center">
+            <svg width="20" height="20"><use href="#i-database" /></svg>
+            <span>ToolPlus</span>
+        </div>
+        <h1 style="margin-top:var(--s4)">Có lỗi xảy ra</h1>
+        <p class="sub">Yêu cầu không xử lý được. Xem log server để biết chi tiết.</p>
+
+        @if (Model.ShowRequestId)
+        {
+            <div class="keychip" style="width:100%;justify-content:center">Request ID: @Model.RequestId</div>
+        }
+
+        <a class="btn btn--primary btn--block" href="/" style="margin-top:var(--s4)">Về trang tra cứu</a>
+    </div>
+</main>

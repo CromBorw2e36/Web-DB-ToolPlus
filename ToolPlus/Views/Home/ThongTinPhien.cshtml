@@ -1,0 +1,95 @@
+@using ToolPlus.Common
+@using ToolPlus.Models.ToolEntity
+@using ToolPlus.Services.Interface
+@inject ModuleRegistry Registry
+@{
+    ViewData["Title"] = "Thông tin phiên";
+    var user = ViewData["CurrentUser"] as ToolUser;
+    var session = ViewData["Session"] as SessionInfo;
+    var opt = ViewData["Options"] as ToolPlusOptions;
+}
+
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h1>Thông tin phiên &amp; cấu hình</h1>
+            <p>Tài khoản đang dùng, quyền trên từng module và các khoá cấu hình đang có hiệu lực.</p>
+        </div>
+        <div class="spacer"></div>
+        <a class="btn" href="/login/doimatkhau">
+            <svg width="14" height="14"><use href="#i-key" /></svg> Đổi mật khẩu
+        </a>
+        <a class="btn" href="/login/logout">
+            <svg width="14" height="14"><use href="#i-logout" /></svg> Đăng xuất
+        </a>
+    </div>
+
+    <div class="section-title">Tài khoản</div>
+    <div class="card">
+        <table class="kv">
+            <tbody>
+                <tr><th>Tài khoản</th><td>@user?.Username</td></tr>
+                <tr><th>Họ tên</th><td>@user?.FullName</td></tr>
+                <tr><th>Vai trò</th><td>@(user?.IsAdmin == true ? "Quản trị (toàn quyền mọi module)" : "Người dùng")</td></tr>
+                <tr>
+                    <th>Hạn tài khoản</th>
+                    <td>@(user?.ExpiresAt?.ToString("dd/MM/yyyy") ?? "(không hạn)")</td>
+                </tr>
+                <tr><th>Đăng nhập lần trước</th><td>@(user?.LastLoginAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td></tr>
+                <tr>
+                    <th>Phiên hết hạn</th>
+                    <td>@(session?.Session.ExpiresAt.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                </tr>
+                <tr><th>IP đăng nhập</th><td>@session?.Session.Ip</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-title">Quyền theo module</div>
+    <div class="card">
+        <table class="kv">
+            <tbody>
+                @foreach (var m in Registry.All)
+                {
+                    var grant = session == null
+                        ? null
+                        : session.Modules.FirstOrDefault(x => string.Equals(x.ModuleKey, m.Key, StringComparison.OrdinalIgnoreCase));
+                    var admin = user?.IsAdmin == true;
+                    var canView = admin || grant != null;
+                    var canEdit = canView && (admin || grant!.CanEdit) && m.AllowEdit && (opt?.AllowEdit ?? false);
+                    <tr>
+                        <th>@m.Name <code>@m.Key</code></th>
+                        <td>
+                            @if (!canView)
+                            {
+                                <span>Không có quyền</span>
+                            }
+                            else if (canEdit)
+                            {
+                                <span>Xem và sửa</span>
+                            }
+                            else
+                            {
+                                <span>Chỉ xem@(canView && !m.AllowEdit ? " (module đang khoá sửa)" : "")</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-title">Cấu hình ToolPlus</div>
+    <div class="card">
+        <table class="kv">
+            <tbody>
+                <tr><th>AllowEdit</th><td>@opt?.AllowEdit</td></tr>
+                <tr><th>SessionDays</th><td>@opt?.SessionDays</td></tr>
+                <tr><th>MaxRows</th><td>@opt?.MaxRows</td></tr>
+                <tr><th>SearchCollation</th><td>@(opt != null && opt.SearchCollation.IsEmpty() ? "(không bỏ dấu)" : opt?.SearchCollation)</td></tr>
+                <tr><th>QueryTimeoutSeconds</th><td>@opt?.QueryTimeoutSeconds</td></tr>
+                <tr><th>HostApp</th><td>@(opt?.HostApp.IsValid == true ? opt.HostApp.Url : "(chưa khai)")</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>

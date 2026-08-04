@@ -1,0 +1,185 @@
+@using ToolPlus.Common
+@{
+    ViewData["Title"] = "Tra cứu dữ liệu";
+    ViewData["Fill"] = true;
+    var opt = ViewData["Options"] as ToolPlusOptions;
+    var maxRows = opt?.MaxRows ?? 500;
+    var allowEdit = opt?.AllowEdit ?? false;
+}
+
+<div class="subbar">
+    <button type="button" class="icon-btn table-drawer-toggle" id="tableToggle"
+            title="Danh sách bảng" aria-label="Danh sách bảng">
+        <svg width="17" height="17"><use href="#i-panel" /></svg>
+    </button>
+
+    <nav class="tabs" role="tablist" id="tabs">
+        <button type="button" class="tab" role="tab" data-pane="tracuu" aria-selected="true">
+            <svg width="14" height="14"><use href="#i-table" /></svg><span>Tra cứu</span>
+        </button>
+        <button type="button" class="tab" role="tab" data-pane="query" aria-selected="false">
+            <svg width="14" height="14"><use href="#i-terminal" /></svg><span>Câu lệnh SELECT</span>
+        </button>
+        <button type="button" class="tab" role="tab" data-pane="log" aria-selected="false">
+            <svg width="14" height="14"><use href="#i-history" /></svg><span>Lịch sử</span>
+        </button>
+    </nav>
+
+    <div class="spacer" style="flex:1 1 auto"></div>
+    <span class="hint">Công cụ truy vết — dùng khi chưa có trang nghiệp vụ riêng</span>
+</div>
+
+<div class="panes">
+
+@* ------------------------------------------------------------------- search *@
+<div class="pane" data-pane="tracuu" data-active="true" style="flex-direction:row">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+            <div class="search-wrap">
+                <svg width="14" height="14"><use href="#i-search" /></svg>
+                <input class="input" id="tableFilter" placeholder="Lọc bảng…" autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="sidebar-meta">
+                <span id="tableCount">Đang tải…</span>
+                <button type="button" class="btn btn--ghost" id="btnReloadMeta" title="Đọc lại cấu trúc DB" style="height:22px;padding:0 6px">
+                    <svg width="13" height="13"><use href="#i-refresh" /></svg>
+                </button>
+            </div>
+        </div>
+        <div class="table-list" id="tableList"></div>
+    </aside>
+
+    <section class="main">
+        <div class="toolbar">
+            <div class="search-wrap grow">
+                <svg width="14" height="14"><use href="#i-search" /></svg>
+                <input class="input" id="kw" placeholder="Từ khoá bất kỳ trong bảng…" autocomplete="off" spellcheck="false" />
+            </div>
+            <button type="button" class="btn btn--primary" id="btnSearch">Tìm</button>
+
+            <label class="check" title="Tìm không phân biệt dấu"><input type="checkbox" id="boDau" checked /> Bỏ dấu</label>
+            <label class="check" title="Hiện cả cột nvarchar(max)/text"><input type="checkbox" id="longText" /> Cột dài</label>
+            <label class="check" title="Đếm tổng số dòng khớp — bảng lớn sẽ chậm"><input type="checkbox" id="countTotal" checked /> Đếm tổng</label>
+
+            <div class="sep"></div>
+            <button type="button" class="btn" id="btnAddFilter">
+                <svg width="14" height="14"><use href="#i-filter" /></svg> Điều kiện
+            </button>
+
+            <div class="spacer"></div>
+            <button type="button" class="btn" id="btnCsv" title="Xuất trang hiện tại ra CSV">
+                <svg width="14" height="14"><use href="#i-download" /></svg> CSV
+            </button>
+            <button type="button" class="btn" id="btnReload" title="Tải lại">
+                <svg width="14" height="14"><use href="#i-refresh" /></svg>
+            </button>
+        </div>
+
+        <div class="filters" id="filters"></div>
+        <div class="grid-note" id="gridNote" hidden></div>
+
+        <div class="grid-wrap" id="gridWrap"></div>
+
+        <div class="savebar" id="saveBar" hidden>
+            <svg width="15" height="15"><use href="#i-alert" /></svg>
+            <span id="dirtyText"></span>
+            <div class="spacer"></div>
+            <button type="button" class="btn btn--ghost" id="btnRevert">
+                <svg width="14" height="14"><use href="#i-undo" /></svg> Hoàn tác
+            </button>
+            <button type="button" class="btn btn--accent" id="btnSave">
+                <svg width="14" height="14"><use href="#i-save" /></svg> Xem &amp; lưu
+            </button>
+        </div>
+
+        <div class="foot">
+            <span class="stat">Dòng <b id="statRows">0</b></span>
+            <span class="stat">Tổng <b id="statTotal">–</b></span>
+            <span class="stat" id="statTime"></span>
+            <div class="spacer"></div>
+            <select class="select" id="pageSize" style="width:auto" aria-label="Số dòng mỗi trang">
+                <option>25</option>
+                <option selected>50</option>
+                <option>100</option>
+                <option>200</option>
+                <option>@maxRows</option>
+            </select>
+            <div class="pager">
+                <button type="button" class="icon-btn" id="btnPrev" title="Trang trước" style="width:26px;height:26px">
+                    <svg width="15" height="15"><use href="#i-left" /></svg>
+                </button>
+                <input class="input" id="pageNo" value="1" inputmode="numeric" aria-label="Trang" />
+                <span id="pageOf">/ 1</span>
+                <button type="button" class="icon-btn" id="btnNext" title="Trang sau" style="width:26px;height:26px">
+                    <svg width="15" height="15"><use href="#i-right" /></svg>
+                </button>
+            </div>
+            <button type="button" class="btn btn--ghost" id="btnSql" title="Xem câu SQL vừa chạy">SQL</button>
+        </div>
+    </section>
+</div>
+
+@* ----------------------------------------------------------- console SELECT *@
+<div class="pane stack" data-pane="query">
+    <div class="query-head">
+        <textarea class="textarea" id="sqlText" spellcheck="false"
+                  placeholder="SELECT TOP 100 MSNV, HoTen, MaPhongBan FROM hr_NhanVien WHERE Deleted = 0 ORDER BY MSNV"></textarea>
+        <div class="query-actions">
+            <button type="button" class="btn btn--primary" id="btnRun">
+                <svg width="14" height="14"><use href="#i-play" /></svg> Chạy <kbd>Ctrl</kbd><kbd>↵</kbd>
+            </button>
+            <span class="hint">
+                Chỉ SELECT / WITH · đọc bẩn (READ UNCOMMITTED, không khoá bảng) · tối đa @maxRows dòng
+            </span>
+            <div class="spacer"></div>
+            <button type="button" class="btn" id="btnQueryCsv">
+                <svg width="14" height="14"><use href="#i-download" /></svg> CSV
+            </button>
+        </div>
+    </div>
+    <div class="grid-wrap" id="queryGrid"></div>
+    <div class="foot">
+        <span class="stat">Dòng <b id="qRows">0</b></span>
+        <span class="stat" id="qTime"></span>
+    </div>
+</div>
+
+@* ------------------------------------------------------------------ history *@
+<div class="pane stack" data-pane="log">
+    <div class="toolbar">
+        <button type="button" class="btn" id="btnReloadLog">
+            <svg width="14" height="14"><use href="#i-refresh" /></svg> Tải lại
+        </button>
+        <span class="hint">Ghi tại bảng <code>AuditLog</code> trong <code>App_Data/toolplus.db</code> — mọi lần sửa, đăng nhập và câu SELECT</span>
+    </div>
+    <div class="log-list" id="logList"></div>
+</div>
+
+</div>@* /panes *@
+
+@* ------------------------------------------------------------------- modals *@
+<div class="modal" id="modal">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-head">
+            <svg width="16" height="16"><use href="#i-save" /></svg>
+            <h3 id="modalTitle">Xác nhận cập nhật</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Đóng">
+                <svg width="15" height="15"><use href="#i-x" /></svg>
+            </button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-foot">
+            <span class="hint" id="modalHint"></span>
+            <div class="spacer"></div>
+            <button type="button" class="btn" data-close>Huỷ</button>
+            <button type="button" class="btn btn--accent" id="modalOk">Cập nhật</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        window.TP_CONFIG = { maxRows: @maxRows, allowEdit: @(allowEdit ? "true" : "false") };
+    </script>
+    <script src="~/js/pages/explorer.js" asp-append-version="true"></script>
+}
