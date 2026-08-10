@@ -545,7 +545,10 @@
 
         var rect = canvas.getBoundingClientRect();
         var z = Math.min(1.2, Math.min(rect.width / (maxX - minX), rect.height / (maxY - minY)));
-        G.Zoom = Math.max(0.35, z);
+        // Unlike setZoom() (manual zoom, floored at 0.35 for legibility), fitting a large
+        // blueprint must be allowed to go below that floor — otherwise nodes past a certain
+        // count no longer fit and stay clipped by .canvas{overflow:hidden} no matter what.
+        G.Zoom = Math.max(0.1, z);
         G.PanX = -minX * G.Zoom;
         G.PanY = -minY * G.Zoom;
         applyTransform();
@@ -866,6 +869,35 @@
         $('props').hidden = false;
     }
 
+    /** Suggests {parameter} tokens (and their :tu/:den variants) while typing after an unclosed '{'. */
+    function paramTokenItems(value, caret) {
+        var before = value.slice(0, caret);
+        var m = /\{([A-Za-z0-9_:]*)$/.exec(before);
+        if (!m) return null;
+
+        var kw = m[1].toLowerCase();
+        var items = [];
+        function push(token, hint) {
+            if (kw && token.toLowerCase().indexOf(kw) !== 0) return;
+            items.push({ label: '{' + token + '}', hint: hint });
+        }
+
+        G.Params.forEach(function (p) {
+            var who = p.Label || p.Key;
+            push(p.Key, 'value for "' + who + '"');
+            if (p.Type === 'month') {
+                push(p.Key + ':tu', 'first day of month for "' + who + '"');
+                push(p.Key + ':den', 'first day of NEXT month for "' + who + '"');
+            } else if (p.Type === 'date') {
+                push(p.Key + ':tu', '00:00 on day "' + who + '"');
+                push(p.Key + ':den', '00:00 the day AFTER "' + who + '"');
+            }
+        });
+
+        if (!items.length) return null;
+        return { items: items, range: [caret - m[0].length, caret] };
+    }
+
     function renderPropFilters(n) {
         var box = $('propsFilters');
 
@@ -901,6 +933,10 @@
                 + (hideValue ? '' : tokenChips())
                 + '</div>';
         }).join('');
+
+        box.querySelectorAll('[data-p="f-val"]').forEach(function (input) {
+            TP.attachAutocomplete(input, { getItems: paramTokenItems });
+        });
     }
 
     /**

@@ -121,26 +121,33 @@
 
 @* ----------------------------------------------------------- console SELECT *@
 <div class="pane stack" data-pane="query">
-    <div class="query-head">
-        <textarea class="textarea" id="sqlText" spellcheck="false"
-                  placeholder="SELECT TOP 100 MSNV, HoTen, MaPhongBan FROM hr_NhanVien WHERE Deleted = 0 ORDER BY MSNV"></textarea>
-        <div class="query-actions">
-            <button type="button" class="btn btn--primary" id="btnRun">
-                <svg width="14" height="14"><use href="#i-play" /></svg> Chạy <kbd>Ctrl</kbd><kbd>↵</kbd>
-            </button>
-            <span class="hint">
-                Chỉ SELECT / WITH · đọc bẩn (READ UNCOMMITTED, không khoá bảng) · tối đa @maxRows dòng
-            </span>
-            <div class="spacer"></div>
-            <button type="button" class="btn" id="btnQueryCsv">
-                <svg width="14" height="14"><use href="#i-download" /></svg> CSV
-            </button>
-        </div>
-    </div>
     <div class="grid-wrap" id="queryGrid"></div>
     <div class="foot">
         <span class="stat">Dòng <b id="qRows">0</b></span>
         <span class="stat" id="qTime"></span>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn--ghost" id="btnQueryCsv">
+            <svg width="14" height="14"><use href="#i-download" /></svg> CSV
+        </button>
+        <button type="button" class="btn btn--ghost" id="queryConsoleToggle" title="Ẩn/hiện khung câu lệnh">
+            <svg width="14" height="14"><use href="#i-terminal" /></svg> Câu lệnh
+            <svg class="console-caret" width="12" height="12"><use href="#i-caret" /></svg>
+        </button>
+    </div>
+
+    <div class="query-console" id="queryConsole">
+        <div class="query-head">
+            <textarea class="textarea" id="sqlText" spellcheck="false"
+                      placeholder="SELECT TOP 100 MSNV, HoTen, MaPhongBan FROM hr_NhanVien WHERE Deleted = 0 ORDER BY MSNV"></textarea>
+            <div class="query-actions">
+                <button type="button" class="btn btn--primary" id="btnRun">
+                    <svg width="14" height="14"><use href="#i-play" /></svg> Chạy <kbd>Ctrl</kbd><kbd>↵</kbd>
+                </button>
+                <span class="hint">
+                    Chỉ SELECT / WITH · đọc bẩn (READ UNCOMMITTED, không khoá bảng) · tối đa @maxRows dòng
+                </span>
+            </div>
+        </div>
     </div>
 </div>
 

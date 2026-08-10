@@ -105,7 +105,22 @@
             });
 
             if (tab.dataset.pane === 'log') loadLog();
-            if (tab.dataset.pane === 'query') $('sqlText').focus();
+            if (tab.dataset.pane === 'query') { setConsoleCollapsed(false); $('sqlText').focus(); }
+        });
+    }
+
+    // ---------------------------------------------------------- query console
+
+    function setConsoleCollapsed(collapsed) {
+        $('queryConsole').hidden = collapsed;
+        $('queryConsoleToggle').querySelector('.console-caret').style.transform = collapsed ? 'rotate(-90deg)' : '';
+        try { localStorage.setItem('tp-query-console', collapsed ? '1' : '0'); } catch (e) { }
+    }
+
+    function initQueryConsole() {
+        setConsoleCollapsed(localStorage.getItem('tp-query-console') === '1');
+        $('queryConsoleToggle').addEventListener('click', function () {
+            setConsoleCollapsed(!$('queryConsole').hidden);
         });
     }
 
@@ -547,6 +562,68 @@
         }
     }
 
+    // ----------------------------------------------------------- SQL suggestions
+
+    var SQL_KEYWORDS = [
+        'SELECT', 'DISTINCT', 'TOP', 'FROM', 'WHERE', 'AND', 'OR', 'NOT', 'IN', 'LIKE', 'IS', 'NULL',
+        'ORDER BY', 'GROUP BY', 'HAVING', 'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'ON', 'AS',
+        'WITH', 'UNION', 'UNION ALL', 'BETWEEN', 'DESC', 'ASC', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX',
+        'CAST', 'CONVERT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'EXISTS'
+    ];
+
+    var queryColCache = {};     // table Full -> Columns[], loaded lazily once a table is mentioned
+    var queryColLoading = {};   // table Full -> true while that fetch is in flight
+    var sqlAc = null;
+
+    /** Table names following FROM/JOIN so far, used to scope which columns get suggested. */
+    function mentionedTables(sql) {
+        var names = [], seen = {}, re = /\b(?:FROM|JOIN)\s+([A-Za-z0-9_.[\]]+)/gi, m;
+        while ((m = re.exec(sql))) {
+            var name = m[1].replace(/[[\]]/g, '').replace(/^dbo\./i, '');
+            if (!seen[name]) { seen[name] = true; names.push(name); }
+        }
+        return names;
+    }
+
+    function sqlSuggestItems(value, caret) {
+        var m = /[A-Za-z0-9_]+$/.exec(value.slice(0, caret));
+        if (!m) return null;
+
+        var kw = m[0].toLowerCase();
+        var items = [];
+
+        SQL_KEYWORDS.forEach(function (k) {
+            if (k.toLowerCase().indexOf(kw) === 0) items.push({ label: k, hint: 'từ khoá' });
+        });
+
+        S.tables.forEach(function (t) {
+            if (t.Name.toLowerCase().indexOf(kw) === 0) items.push({ label: t.Name, hint: t.IsView ? 'view' : 'bảng' });
+        });
+
+        mentionedTables(value).forEach(function (name) {
+            var t = S.tables.filter(function (x) { return x.Name.toLowerCase() === name.toLowerCase(); })[0];
+            if (!t) return;
+
+            var cols = queryColCache[t.Full];
+            if (!cols) {
+                if (!queryColLoading[t.Full]) {
+                    queryColLoading[t.Full] = true;
+                    TP.get('/explorer/columns?table=' + encodeURIComponent(t.Full)).then(function (res) {
+                        queryColCache[t.Full] = res.Columns || [];
+                        if (sqlAc) sqlAc.refresh();
+                    }, function () { queryColLoading[t.Full] = false; });
+                }
+                return;
+            }
+            cols.forEach(function (c) {
+                if (c.Name.toLowerCase().indexOf(kw) === 0) items.push({ label: c.Name, hint: t.Name });
+            });
+        });
+
+        if (!items.length) return null;
+        return { items: items, range: [caret - m[0].length, caret] };
+    }
+
     // ----------------------------------------------------------------- history
 
     async function loadLog() {
@@ -694,10 +771,12 @@
         });
 
         // console SELECT
+        initQueryConsole();
         $('btnRun').addEventListener('click', runQuery);
         $('sqlText').addEventListener('keydown', function (e) {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runQuery(); }
         });
+        sqlAc = TP.attachAutocomplete($('sqlText'), { getItems: sqlSuggestItems });
         $('btnQueryCsv').addEventListener('click', function () {
             if (!S.query.Rows || !S.query.Rows.length) { TP.toast('No results to export', 'err'); return; }
             TP.downloadCsv('query.csv', S.query.Columns.map(function (c) { return c.Name; }), S.query.Rows);

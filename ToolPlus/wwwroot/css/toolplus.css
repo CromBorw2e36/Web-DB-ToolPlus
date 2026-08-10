@@ -681,6 +681,26 @@ td.editing input:focus { outline: none; }
 
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 
+/* --------------------------------------------------------------- suggestions */
+
+.tp-suggest {
+    position: absolute;
+    z-index: 95;
+    max-width: 360px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r2);
+    background: var(--surface);
+    box-shadow: var(--shadow-2);
+    font-size: 12px;
+}
+.tp-suggest-item { display: flex; align-items: baseline; gap: var(--s2); padding: 5px 8px; border-radius: var(--r1); cursor: pointer; }
+.tp-suggest-item.is-active, .tp-suggest-item:hover { background: var(--accent-soft); }
+.tp-suggest-label { font-family: var(--mono); font-weight: 600; color: var(--fg); }
+.tp-suggest-hint { color: var(--fg-subtle); font-size: 11px; margin-left: auto; white-space: nowrap; }
+
 /* -------------------------------------------------------------------- modal */
 
 .modal { position: fixed; inset: 0; z-index: 80; display: none; place-items: center; padding: var(--s4); background: rgba(15, 23, 42, .55); }
@@ -716,11 +736,17 @@ table.diff .col { font-weight: 500; color: var(--fg); white-space: nowrap; }
 
 /* ------------------------------------------------------------- query & log */
 
-.stack { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
-.query-head { padding: var(--s3); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--s2); }
+/* flex-direction/min-height only: display is left to .pane / .pane[data-active] — .stack used to also
+   set display:flex, which (same specificity, declared later) silently overrode .pane's display:none
+   and left the query/log panes rendered — squeezed beside the active pane — even while inactive. */
+.stack { flex-direction: column; min-height: 0; flex: 1 1 auto; }
+
+.query-console { flex: 0 0 auto; border-top: 1px solid var(--border); background: var(--surface); }
+.query-head { padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
 .query-head .textarea { min-height: 108px; max-height: 40vh; }
 .query-actions { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 .query-actions .spacer { flex: 1 1 auto; }
+.console-caret { transition: transform var(--t); }
 
 .log-list { flex: 1 1 auto; overflow: auto; padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
 
