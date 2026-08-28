@@ -20,6 +20,17 @@ dotnet run --project ToolPlus/ToolPlus.csproj                                # h
 file is gitignored so secrets never reach the repository. It is loaded last, so it overrides
 every other appsettings file.
 
+### Docker
+
+```bash
+cp ToolPlus/appsettings.local.example.json ToolPlus/appsettings.local.json   # then fill in real values
+docker compose up --build                                                    # http://localhost:8300
+```
+
+`appsettings.local.json` and the `App_Data` SQLite store are mounted at runtime (see
+`docker-compose.yml`), never baked into the image. The container listens on `8300`; override
+the host-side port with a `.env` file (`TOOLPLUS_PORT=8081`) instead of editing the compose file.
+
 ## Modules — one connection string is one module
 
 Add a line to `ConnectionStrings`, restart, and you have a new module: search, blueprints and

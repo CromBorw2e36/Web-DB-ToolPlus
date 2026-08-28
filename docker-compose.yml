@@ -1,0 +1,19 @@
+services:
+  toolplus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      # Host port only - override with TOOLPLUS_PORT in a .env file. The container
+      # always listens on 8300 internally (see Dockerfile).
+      - "${TOOLPLUS_PORT:-8300}:8300"
+    volumes:
+      # Secrets belong outside the image - copy ToolPlus/appsettings.local.example.json to
+      # ToolPlus/appsettings.local.json and fill in real connection strings first.
+      - ./ToolPlus/appsettings.local.json:/app/appsettings.local.json:ro
+      # The tool's own SQLite store (ToolDbContext) - must persist across rebuilds.
+      - toolplus-data:/app/App_Data
+    restart: unless-stopped
+
+volumes:
+  toolplus-data:

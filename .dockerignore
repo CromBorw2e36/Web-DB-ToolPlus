@@ -1,0 +1,20 @@
+# Secrets and the tool's own SQLite data must never end up baked into the image -
+# they are mounted at runtime instead (see docker-compose.yml).
+**/appsettings.local.json
+**/appsettings.*.local.json
+**/App_Data/
+
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+
+.git/
+.github/
+.gitignore
+.dockerignore
+README.md
+CLAUDE.md
+LICENSE
+design-system/
+*.slnx
