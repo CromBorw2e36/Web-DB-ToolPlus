@@ -5,14 +5,51 @@
 
     var CFG = window.RUN_DATA || { id: '', allowEdit: false };
 
+    // Grid geometry, mirrored from toolplus.css (--row-h and the 30px thead). Used to work out
+    // whether a table is long enough to need capping — a short one is left to hug its rows.
+    var ROW_H = 28, HEAD_H = 31;
+
+    var HEIGHTS = [
+        { rows: 10, label: '10 dòng' },
+        { rows: 15, label: '15 dòng' },
+        { rows: 25, label: '25 dòng' },
+        { rows: 40, label: '40 dòng' },
+        { rows: 0, label: 'Tất cả' }
+    ];
+    var HKEY = 'tp.blueprint.rows';
+
     var S = {
         nodes: [],        // results from the server
         byId: {},
         sel: {},          // nodeId -> selected row index (child tables filter down to this row)
         fold: {},         // nodeId -> true while collapsed; survives re-renders
         warnings: [],     // kept so a re-render (selecting a row) does not swallow the warnings
-        edit: null        // { node, row, fields }
+        edit: null,       // { node, row, fields }
+        rows: 15,         // visible rows before a table is capped and becomes resizable; 0 = never cap
+        height: {}        // nodeId -> height the user dragged that table to; survives re-renders
     };
+
+    function loadRows() {
+        var v = null;
+        try { v = localStorage.getItem(HKEY); } catch (e) { }
+        var n = parseInt(v, 10);
+        if (isNaN(n)) return;
+        // Only accept a value the dropdown can actually show, otherwise it would sit blank.
+        if (HEIGHTS.some(function (h) { return h.rows === n; })) S.rows = n;
+    }
+
+    function applyRows() {
+        try { localStorage.setItem(HKEY, String(S.rows)); } catch (e) { }
+        // rows = 0 caps nothing, so leave --res-h at its stylesheet default rather than
+        // writing the 31px a bare header would compute to.
+        if (S.rows > 0) $('runResults').style.setProperty('--res-h', (HEAD_H + S.rows * ROW_H) + 'px');
+        else $('runResults').style.removeProperty('--res-h');
+    }
+
+    /** A table is only capped when it would otherwise be taller than the chosen height. */
+    function needsCap(rowCount) {
+        return S.rows > 0 && rowCount > S.rows;
+    }
 
     function $(id) { return document.getElementById(id); }
     var esc = function (s) { return TP.escapeHtml(s); };
@@ -144,6 +181,14 @@
                 + '<b>' + (n.Error ? 'error' : rows.length) + '</b></button>';
         }).join('')
             + '<span class="spacer"></span>'
+            + '<label class="check" title="Số dòng hiển thị trước khi bảng phải cuộn. '
+            + 'Kéo mép dưới một bảng để chỉnh riêng bảng đó.">Số dòng'
+            + '<select class="select" id="selRows">'
+            + HEIGHTS.map(function (o) {
+                return '<option value="' + o.rows + '"'
+                    + (o.rows === S.rows ? ' selected' : '') + '>' + o.label + '</option>';
+            }).join('')
+            + '</select></label>'
             + '<button type="button" class="btn btn--ghost" id="btnFoldAll"></button>';
 
         bar.hidden = false;
@@ -234,7 +279,13 @@
     }
 
     function tableHtml(n, rows) {
-        var h = ['<div class="res-body"><table class="grid"><thead><tr>'];
+        var cap = needsCap(rows.length);
+        // Selecting a row in a parent re-renders every table, so a height the user dragged to
+        // has to be re-applied by hand or it would be lost on the next click.
+        var kept = cap ? S.height[n.NodeId] : null;
+        var h = ['<div class="res-body' + (cap ? ' res-body--cap' : '') + '"'
+            + (kept ? ' style="height:' + kept + '"' : '')
+            + '><table class="grid"><thead><tr>'];
         if (n.CanEdit) h.push('<th class="rowno"></th>');
         h.push('<th class="rowno">#</th>');
         n.Shown.forEach(function (c) { h.push('<th style="cursor:default"><div class="th"><span>' + esc(c) + '</span></div></th>'); });
@@ -420,6 +471,28 @@
             void card.offsetWidth;          // force the animation to replay when the same chip is clicked twice
             card.classList.add('is-flash');
         });
+
+        // Changing the height re-renders: whether a table is capped depends on the new value.
+        // Picking a height is also the way to undo the individual drags.
+        $('runIndex').addEventListener('change', function (e) {
+            if (e.target.id !== 'selRows') return;
+            S.rows = parseInt(e.target.value, 10) || 0;
+            S.height = {};
+            applyRows();
+            render();
+        });
+
+        // End of a drag on the resize grip. The value is written by the browser, but it is
+        // going back into a style attribute, so only a plain pixel length is accepted.
+        $('runResults').addEventListener('pointerup', function (e) {
+            var body = e.target.closest ? e.target.closest('.res-body--cap') : null;
+            if (!body || !/^\d+(\.\d+)?px$/.test(body.style.height)) return;
+            var card = body.closest('.rescard');
+            if (card) S.height[card.dataset.node] = body.style.height;
+        });
+
+        loadRows();
+        applyRows();
 
         $('editSave').addEventListener('click', openDiff);
         $('diffOk').addEventListener('click', doSave);
