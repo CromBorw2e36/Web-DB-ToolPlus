@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json.Serialization;
 using ToolPlus.Common;
@@ -6,6 +6,7 @@ using ToolPlus.Models.ToolEntity;
 using ToolPlus.Services.Blueprints;
 using ToolPlus.Services.Explorer;
 using ToolPlus.Services.Interface;
+using ToolPlus.Services.Sync;
 using ToolPlus.Services.Users;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,6 +40,11 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IModuleContext, ModuleContext>();
 builder.Services.AddRouting(o => o.ConstraintMap.Add("module", typeof(ModuleRouteConstraint)));
 
+// Services read structure and rows through the narrower IModuleScope, so the same code can be
+// pointed at a SECOND database — which is what comparing a field across two of them needs.
+builder.Services.AddScoped<IModuleScope>(sp => sp.GetRequiredService<IModuleContext>());
+builder.Services.AddSingleton<IModuleScopeFactory, ModuleScopeFactory>();
+
 // The tool's own store: SQLite next to the app. A module database must never grow tables of ours,
 // so blueprints / audit log / relation hints all live here.
 var toolDbPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "toolplus.db");
@@ -51,6 +57,7 @@ builder.Services.AddScoped<IMetadataService, MetadataService>();
 builder.Services.AddScoped<IExplorerService, ExplorerService>();
 builder.Services.AddScoped<IBlueprintService, BlueprintService>();
 builder.Services.AddScoped<IBlueprintRunner, BlueprintRunner>();
+builder.Services.AddScoped<ISyncService, SyncService>();
 
 var app = builder.Build();
 
@@ -64,6 +71,7 @@ using (var scope = app.Services.CreateScope())
     // hand — otherwise an installation from before they existed silently lacks them.
     db.EnsureIdentityTables();
     db.EnsureModuleColumns(scope.ServiceProvider.GetRequiredService<ModuleRegistry>().Default.Key);
+    db.EnsureAuditColumns();
 
     var boot = toolOptions.Bootstrap;
 

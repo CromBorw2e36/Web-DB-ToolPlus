@@ -107,6 +107,35 @@
 
     // ------------------------------------------------------------------- misc
 
+    /**
+     * Writes to the clipboard, returning whether it worked.
+     *
+     * navigator.clipboard exists only in a secure context, and this tool is normally reached at
+     * http://<lan-ip>:8300 — where it is simply undefined — so the old execCommand path has to stay
+     * as the fallback rather than the button doing nothing at all.
+     */
+    async function copy(text) {
+        try {
+            if (window.isSecureContext && navigator.clipboard) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch (e) { /* denied or unavailable — fall through */ }
+
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        // Off-screen rather than hidden: a display:none element cannot be selected.
+        ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+
+        var ok;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        ta.remove();
+        return !!ok;
+    }
+
     function escapeHtml(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -166,7 +195,8 @@
     }
 
     /** Opens upward (bottom edge pinned just above the field) — fields like the SQL console sit at
-     *  the bottom of the page, where a popup dropping below the field has no room to be seen at all. */
+     *  the bottom of the page, where a popup dropping below the field has no room to be seen at all.
+     *  A field near the TOP of the viewport has the opposite problem, so it flips below instead. */
     function paintSuggest(state) {
         var b = ensureSuggestBox();
         b.innerHTML = state.items.map(function (it, i) {
@@ -181,7 +211,8 @@
         b.style.minWidth = Math.round(r.width) + 'px';
         b.hidden = false;   // must be visible to measure its rendered height below
 
-        b.style.top = Math.round(r.top + window.scrollY - 4 - b.offsetHeight) + 'px';
+        var above = r.top - 4 - b.offsetHeight;
+        b.style.top = Math.round((above < 4 ? r.bottom + 4 : above) + window.scrollY) + 'px';
     }
 
     /**
@@ -242,6 +273,7 @@
         get: get,
         post: post,
         postForm: postForm,
+        copy: copy,
         escapeHtml: escapeHtml,
         num: num,
         downloadCsv: downloadCsv,

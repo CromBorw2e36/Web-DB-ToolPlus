@@ -52,7 +52,7 @@ namespace ToolPlus.Common
         /// Controller names cannot be used as module keys: "/explorer/index" would be ambiguous
         /// between "module explorer" and "controller Explorer". Add new controllers here.
         /// </summary>
-        private static readonly string[] Reserved = { "home", "login", "explorer", "blueprint", "user" };
+        private static readonly string[] Reserved = { "home", "login", "explorer", "blueprint", "user", "sync" };
 
         public IReadOnlyList<ModuleDefinition> All { get; }
 

@@ -30,6 +30,7 @@
         total: -1,
         sql: '',
         query: { Columns: [], Rows: [], Sql: '' },
+        log: [],                   // last loaded audit page, indexed by the row's data-i
         modalOk: null
     };
 
@@ -631,6 +632,7 @@
         setLoading(box, true);
         try {
             var items = await TP.get('/explorer/log?take=300');
+            S.log = items;
             box.innerHTML = items.length ? items.map(logItemHtml).join('')
                 : emptyHtml('No audit log yet', 'Entries are written when data is edited, someone signs in, or a SELECT query is run.');
         } catch (e) {
@@ -640,25 +642,33 @@
         }
     }
 
-    function logItemHtml(x) {
+    /** `nested` = already being shown inside its own run, so it does not offer to open it again. */
+    function logItemHtml(x, i, nested) {
         var what;
         if (x.Type === 'update') {
             var changed = [];
             try { changed = JSON.parse(x.ChangesJson || '[]').map(function (c) { return c.Column; }); } catch (e) { }
-            what = (x.TableName || '') + (changed.length ? ' → ' + changed.join(', ') : '');
+
+            // The label is the whole point of the line: the key is a GUID in most of these tables,
+            // so without it every entry reads the same.
+            what = (x.TableName || '')
+                + (x.Label ? ' [' + x.Label + ']' : '')
+                + (changed.length ? ' → ' + changed.join(', ') : '');
         } else if (x.Type === 'query') {
             what = (x.Sql || '').replace(/\s+/g, ' ').slice(0, 200);
         } else {
             what = x.Note || x.TableName || '';
         }
 
-        return '<div class="log-item"><div class="log-head">'
+        return '<div class="log-item" data-i="' + i + '"><div class="log-head">'
             + '<span class="badge' + (x.Type === 'update' ? ' badge--pk' : '') + '">' + esc(x.Type) + '</span>'
             + '<time>' + esc(logTime(x.Time)) + '</time>'
             + '<span class="who">' + esc(x.User || '?') + '</span>'
             + '<span class="what">' + esc(what) + '</span>'
             + '<svg width="13" height="13"><use href="#i-caret"/></svg></div>'
-            + '<div class="log-body" hidden><pre>' + esc(logDetail(x)) + '</pre></div></div>';
+            + '<div class="log-body" hidden>' + logActions(x, nested)
+            + '<div class="log-run" hidden></div>'
+            + '<pre>' + esc(logDetail(x)) + '</pre></div></div>';
     }
 
     function logTime(iso) {
@@ -681,6 +691,217 @@
             o[k] = v;
         });
         return JSON.stringify(o, null, 2);
+    }
+
+    // ------------------------------------------- history: statements you can actually run
+
+    /* A logged statement is parameterised — `SET [c] = @v WHERE [k] = @k0` — because values never
+       reach the SQL text; that is the injection guard. Pasting one into SSMS therefore does nothing
+       but complain about undeclared variables. The values are recorded separately, in Key and
+       Changes, so a runnable statement is rebuilt here out of those three pieces. */
+
+    function logActions(x, nested) {
+        var out = [];
+
+        if (x.Type === 'update' && x.KeyJson && x.ChangesJson) {
+            out.push(copyBtn('sel', 'Copy SELECT', 'Câu SELECT xem lại dòng này trong SSMS'));
+            out.push(copyBtn('upd', 'Copy UPDATE', 'Đúng thay đổi đã ghi, tham số thay bằng giá trị thật'));
+            out.push(copyBtn('undo', 'Copy hoàn tác', 'Câu UPDATE trả dòng này về giá trị trước đó'));
+        } else if (x.Type === 'query' && x.Sql) {
+            out.push(copyBtn('sql', 'Copy SQL', 'Câu này chạy được nguyên văn'));
+        }
+
+        // A summary row says how many rows a sync wrote but not which, and they are scattered
+        // through the list — so it has to be able to show them itself.
+        if (x.RunId && !nested) {
+            out.push(btnHtml('data-runview', 'i-table', 'Xem các dòng đã sửa',
+                'Mở từng dòng mà lần chạy này đã ghi'));
+            out.push(copyBtn('run', 'Copy hoàn tác cả lần chạy',
+                'Script trả TOÀN BỘ số dòng lần chạy này đã sửa về giá trị cũ'));
+        }
+
+        return out.length ? '<div class="log-actions">' + out.join('') + '</div>' : '';
+    }
+
+    function copyBtn(kind, text, title) {
+        return btnHtml('data-copy="' + kind + '"', 'i-file', text, title);
+    }
+
+    function btnHtml(attr, icon, text, title) {
+        return '<button type="button" class="btn btn--ghost" ' + attr + ' title="' + esc(title)
+            + '"><svg width="13" height="13"><use href="#' + icon + '"/></svg> ' + esc(text) + '</button>';
+    }
+
+    /**
+     * Renders the rows one run wrote, inside the entry that summarises it.
+     *
+     * They are appended to the same list the copy buttons index into, so each nested row gets the
+     * ordinary per-row buttons with no special case — only the run-level ones are suppressed, or
+     * every row would offer to open the run it is already inside.
+     */
+    async function showRunRows(index, button) {
+        var x = S.log[index];
+        var box = button.closest('.log-body').querySelector('.log-run');
+        if (!x || !box) return;
+
+        if (box.dataset.loaded === '1') {
+            box.hidden = !box.hidden;
+            return;
+        }
+
+        button.disabled = true;
+        try {
+            var rows = await TP.get('/explorer/logrun?id=' + encodeURIComponent(x.RunId));
+            var writes = rows.filter(function (r) { return r.Type === 'update'; });
+
+            box.innerHTML = writes.length
+                ? writes.map(function (r) {
+                    S.log.push(r);
+                    return logItemHtml(r, S.log.length - 1, true);
+                }).join('')
+                : '<div class="res-msg">Lần chạy này không ghi dòng nào.</div>';
+
+            box.dataset.loaded = '1';
+            box.hidden = false;
+        } catch (e) {
+            TP.toast(e.message, 'err');
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    async function copyLogScript(kind, index) {
+        var x = S.log[index];
+        if (!x) return;
+
+        try {
+            var script = kind === 'run' ? await runUndoScript(x) : entryScript(kind, x);
+            if (!script) {
+                TP.toast('Bản ghi này không đủ dữ liệu để dựng câu lệnh', 'err');
+                return;
+            }
+
+            if (await TP.copy(script)) TP.toast('Đã copy — dán thẳng vào SSMS', 'ok');
+            else showModal('Trình duyệt không cho copy — chọn và copy tay',
+                '<pre class="sql-box">' + esc(script) + '</pre>', '', null);
+        } catch (e) {
+            TP.toast(e.message, 'err');
+        }
+    }
+
+    function entryScript(kind, x) {
+        if (kind === 'sql') return x.Sql || null;
+
+        if (kind === 'sel') {
+            var select = selectStatement(x);
+            return select ? scriptHead('xem lại thao tác #' + x.Id, x) + '\n\n' + select + '\n' : null;
+        }
+
+        var back = kind === 'undo';
+        var update = updateStatement(x, back);
+        if (!update) return null;
+
+        return guarded(scriptHead((back ? 'hoàn tác' : 'chạy lại') + ' thao tác #' + x.Id, x), [update]);
+    }
+
+    /** Undo a whole run: every row it wrote, reversed, inside one transaction. */
+    async function runUndoScript(x) {
+        var rows = await TP.get('/explorer/logrun?id=' + encodeURIComponent(x.RunId));
+
+        var statements = rows
+            .filter(function (r) { return r.Type === 'update' && r.KeyJson && r.ChangesJson; })
+            .map(function (r) { return updateStatement(r, true); })
+            .filter(Boolean);
+
+        if (!statements.length) throw new Error('Lần chạy này không ghi dòng nào');
+
+        return guarded(scriptHead('hoàn tác cả lần chạy · ' + statements.length + ' dòng', x)
+            + '\n   run ' + x.RunId, statements);
+    }
+
+    function selectStatement(x) {
+        var key = parseLogJson(x.KeyJson);
+        if (!key || !x.TableName) return null;
+
+        return 'SELECT *\n  FROM ' + qualify(x.TableName) + '\n WHERE ' + whereKey(key) + ';';
+    }
+
+    /**
+     * One UPDATE, in either direction — `back` swaps From and To, turning "what ToolPlus did" into
+     * "undo what ToolPlus did".
+     *
+     * The WHERE repeats the value the log says the column held afterwards, so a row somebody has
+     * changed since simply will not match: the same optimistic rule the sync page writes under.
+     */
+    function updateStatement(x, back) {
+        var key = parseLogJson(x.KeyJson);
+        var changes = parseLogJson(x.ChangesJson);
+        if (!key || !changes || !changes.length || !x.TableName) return null;
+
+        var sets = changes.map(function (c) {
+            return quote(c.Column) + ' = ' + literal(back ? c.From : c.To);
+        });
+        var guards = changes.map(function (c) {
+            return same(c.Column, back ? c.To : c.From);
+        });
+
+        return 'UPDATE ' + qualify(x.TableName)
+            + '\n   SET ' + sets.join(',\n       ')
+            + '\n WHERE ' + whereKey(key)
+            + '\n   AND ' + guards.join('\n   AND ') + ';';
+    }
+
+    function whereKey(key) {
+        return Object.keys(key).map(function (k) { return same(k, key[k]); }).join('\n   AND ');
+    }
+
+    /** NULL never compares equal to anything, so it needs IS rather than =. */
+    function same(column, value) {
+        return value === null || value === undefined
+            ? quote(column) + ' IS NULL'
+            : quote(column) + ' = ' + literal(value);
+    }
+
+    /**
+     * Value -> SQL literal. Column types are not recorded, so everything goes out as a string and
+     * SQL Server converts: N'123' into an int column is fine. The exception is bit, which is logged
+     * as "True"/"False" and which N'True' will NOT convert to — hence the explicit mapping.
+     */
+    function literal(v) {
+        if (v === null || v === undefined) return 'NULL';
+        if (v === 'True') return '1';
+        if (v === 'False') return '0';
+        return "N'" + String(v).replace(/'/g, "''") + "'";
+    }
+
+    function quote(name) { return '[' + String(name == null ? '' : name).replace(/]/g, ']]') + ']'; }
+
+    /** "dbo.sys_User" -> "[dbo].[sys_User]". */
+    function qualify(table) { return String(table || '').split('.').map(quote).join('.'); }
+
+    function parseLogJson(raw) {
+        try { return JSON.parse(raw || ''); } catch (e) { return null; }
+    }
+
+    function scriptHead(title, x) {
+        return '/* ToolPlus · ' + title
+            + '\n   ' + (x.User || '?') + ' · ' + logStamp(x.Time)
+            + ' · module ' + (x.Module || '?') + ' */';
+    }
+
+    function logStamp(iso) {
+        var d = new Date(iso);
+        if (isNaN(d)) return String(iso || '');
+        var p = function (n) { return String(n).padStart(2, '0'); };
+        return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear()
+            + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+    }
+
+    /** Anything that writes goes out ready to be run, counted, and only then kept. */
+    function guarded(head, statements) {
+        return head + '\n\nBEGIN TRAN;\n\n' + statements.join('\n\n')
+            + '\n\n-- Xem số dòng bị ảnh hưởng. Đúng thì đổi ROLLBACK thành COMMIT rồi chạy lại.'
+            + '\nROLLBACK;\n';
     }
 
     // ------------------------------------------------------------------ modal
@@ -785,6 +1006,18 @@
         // history
         $('btnReloadLog').addEventListener('click', loadLog);
         $('logList').addEventListener('click', function (e) {
+            var copy = e.target.closest('[data-copy]');
+            if (copy) {
+                copyLogScript(copy.dataset.copy, +copy.closest('.log-item').dataset.i);
+                return;
+            }
+
+            var runView = e.target.closest('[data-runview]');
+            if (runView) {
+                showRunRows(+runView.closest('.log-item').dataset.i, runView);
+                return;
+            }
+
             var head = e.target.closest('.log-head');
             if (!head) return;
             var body = head.nextElementSibling;

@@ -39,6 +39,8 @@ public class ToolDbContext : DbContext
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.Time);
             e.HasIndex(x => x.Type);
+            // Every row of one sync is read back together to build an undo script.
+            e.HasIndex(x => x.RunId);
         });
 
         b.Entity<RelationHint>(e =>
@@ -98,6 +100,18 @@ public class ToolDbContext : DbContext
                 ON RelationHint (ModuleKey, FromTable, FromColumn, ToTable, ToColumn);
             CREATE INDEX IF NOT EXISTS IX_Blueprint_ModuleKey_Name ON Blueprint (ModuleKey, Name);
             """);
+    }
+
+    /// <summary>
+    /// Same reason as EnsureIdentityTables: EnsureCreated() skips a file that already exists, so a
+    /// column introduced later never appears on an installation that ran an earlier build.
+    /// </summary>
+    public void EnsureAuditColumns()
+    {
+        AddColumnIfMissing("AuditLog", "RunId", "TEXT NULL");
+        AddColumnIfMissing("AuditLog", "Label", "TEXT NULL");
+        Database.ExecuteSqlRaw(
+            "CREATE INDEX IF NOT EXISTS IX_AuditLog_RunId ON AuditLog (RunId);");
     }
 
     /// <summary>SQLite has no ADD COLUMN IF NOT EXISTS — PRAGMA has to be asked first.</summary>

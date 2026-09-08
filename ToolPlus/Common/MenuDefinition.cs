@@ -58,10 +58,21 @@ namespace ToolPlus.Common
                 }
             },
 
-            // Reserved for buttons that have to be hand-coded because they carry real logic rather
-            // than just editing a cell: regenerating a document number from a sequence, recomputing
-            // a summary table after its source rows were fixed, and so on. Add the first one here.
-            new MenuGroup { Text = "Hành động" },
+            // Buttons that have to be hand-coded because they carry real logic rather than just
+            // editing a cell: regenerating a document number from a sequence, recomputing a summary
+            // table after its source rows were fixed, and so on.
+            new MenuGroup
+            {
+                Text = "Hành động",
+                Items =
+                {
+                    new MenuEntry
+                    {
+                        Text = "Đồng bộ trường từ DB khác", Url = "/sync/index", Icon = "i-refresh",
+                        Note = "So một cột với database khác rồi điền lại những dòng đang trống hoặc sai."
+                    }
+                }
+            },
 
             new MenuGroup
             {

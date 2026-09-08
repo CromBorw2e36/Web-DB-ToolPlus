@@ -281,10 +281,14 @@ namespace ToolPlus.Services.Explorer
                 opened = true;
             }
 
+            // Recorded with the change so the log says WHICH row it was in terms a person recognises;
+            // the primary key alone is usually a GUID.
+            var label = _meta.GuessLabelColumn(all);
+
             try
             {
                 // Snapshot before the change — both for the log and to prove the key hits one row.
-                var before = await ReadBeforeAsync(conn, table, targets, where, keyPs);
+                var before = await ReadBeforeAsync(conn, table, targets, label, where, keyPs);
 
                 await using var tran = await conn.BeginTransactionAsync();
                 var updateSql = "UPDATE " + table.Quoted + " SET " + string.Join(", ", setParts) + where;
@@ -321,6 +325,7 @@ namespace ToolPlus.Services.Explorer
                     Ip = ip,
                     TableName = table.Full,
                     KeyJson = JsonConvert.SerializeObject(req.Key),
+                    Label = label == null ? null : Stringify(before.GetValueOrDefault(label.Name)),
                     ChangesJson = JsonConvert.SerializeObject(changes),
                     Sql = updateSql
                 });
@@ -334,9 +339,14 @@ namespace ToolPlus.Services.Explorer
         }
 
         private async Task<Dictionary<string, object?>> ReadBeforeAsync(DbConnection conn, TableInfo table,
-            List<ColumnInfo> targets, string where, List<KeyValuePair<string, object?>> keyPs)
+            List<ColumnInfo> targets, ColumnInfo? label, string where, List<KeyValuePair<string, object?>> keyPs)
         {
-            var sql = "SELECT " + string.Join(", ", targets.Select(c => "[" + c.Name + "]"))
+            // The label may well be one of the edited columns; selecting it twice would have the
+            // reader rename the second one and the lookup below would miss it.
+            var wanted = new List<ColumnInfo>(targets);
+            if (label != null && !wanted.Contains(label)) wanted.Add(label);
+
+            var sql = "SELECT " + string.Join(", ", wanted.Select(c => "[" + c.Name + "]"))
                       + " FROM " + table.Quoted + where;
 
             await using var cmd = conn.CreateCommand();

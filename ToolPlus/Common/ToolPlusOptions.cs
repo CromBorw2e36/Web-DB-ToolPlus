@@ -47,6 +47,22 @@ namespace ToolPlus.Common
 
         /// <summary>Whether data can be edited at all. Off = the whole instance is read-only.</summary>
         public bool AllowEdit { get; set; } = true;
+
+        public SyncOptions Sync { get; set; } = new();
+    }
+
+    /// <summary>Limits for the field-sync page (/&lt;module&gt;/sync).</summary>
+    public class SyncOptions
+    {
+        /// <summary>
+        /// Rows compared in one run. Deliberately separate from <see cref="ToolPlusOptions.MaxRows"/>:
+        /// that caps what a human reads in a grid, while a sync sweeps a whole slice of a table, where
+        /// 500 would be uselessly small. Hitting the cap is reported, not silently truncated.
+        /// </summary>
+        public int MaxRows { get; set; } = 5000;
+
+        /// <summary>Rows written per transaction. Small enough that a failure rolls back little.</summary>
+        public int BatchSize { get; set; } = 100;
     }
 
     /// <summary>Convenience link back to the application that owns the data being browsed.</summary>

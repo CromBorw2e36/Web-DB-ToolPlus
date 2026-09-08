@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using ToolPlus.Common;
 using ToolPlus.Models.Explorer;
@@ -30,10 +30,16 @@ namespace ToolPlus.Services.Explorer
         private static readonly HashSet<string> IntTypes = new(StringComparer.OrdinalIgnoreCase)
             { "tinyint", "smallint", "int", "bigint" };
 
-        private readonly IModuleContext _module;
+        private readonly IModuleScope _module;
         private readonly MemoryCacheManager _cache;
 
-        public MetadataService(IModuleContext module, MemoryCacheManager cache)
+        /// <summary>
+        /// Takes an <see cref="IModuleScope"/> rather than the request's own context so the same
+        /// whitelist can be applied to a SECOND database — the source side of a field sync builds
+        /// one of these over a SecondaryModuleScope. Cache keys are already module-prefixed, so the
+        /// two never see each other's structure.
+        /// </summary>
+        public MetadataService(IModuleScope module, MemoryCacheManager cache)
         {
             _module = module;
             _cache = cache;
@@ -180,6 +186,46 @@ JOIN sys.columns pc ON pc.object_id = fkc.referenced_object_id AND pc.column_id 
 
             _cache.Set(cacheKey, list, CacheOptions);
             return list;
+        }
+
+        /// <summary>
+        /// Column names that identify a row to a person, best first. Matched against the real column
+        /// list to pick what the audit log should record next to the primary key — which in these
+        /// databases is usually a GUID, and a log full of GUIDs is a log nobody can read.
+        /// </summary>
+        private static readonly string[] LabelNames =
+        {
+            "username", "tendangnhap", "taikhoan", "userlogin",
+            "code", "maso", "sohieu", "sochungtu", "sophieu",
+            "hoten", "tennhanvien", "fullname", "ten", "name", "title", "tieude",
+            "email"
+        };
+
+        public ColumnInfo? GuessLabelColumn(List<ColumnInfo> columns)
+        {
+            // A GUID or a number identifies nothing to a reader, so only short text qualifies.
+            var usable = columns
+                // Wide enough for a name or a document number, narrow enough to leave out prose.
+                .Where(c => c.IsText && !c.IsLong && !c.IsSkipped && c.MaxLength is > 0 and <= 400)
+                .ToList();
+
+            if (usable.Count == 0) return null;
+
+            foreach (var want in LabelNames)
+            {
+                var exact = usable.FirstOrDefault(c => string.Equals(c.Name, want, StringComparison.OrdinalIgnoreCase));
+                if (exact != null) return exact;
+            }
+
+            // Nothing matched by name; a suffix match catches MaNhanVien, TenPhongBan and the like.
+            foreach (var want in LabelNames)
+            {
+                var partial = usable.FirstOrDefault(c => c.Name.Contains(want, StringComparison.OrdinalIgnoreCase));
+                if (partial != null) return partial;
+            }
+
+            // Still nothing recognisable — the first short text column beats no label at all.
+            return usable.OrderBy(c => c.MaxLength).FirstOrDefault();
         }
 
         public ColumnInfo? ResolveColumn(List<ColumnInfo> columns, string? name)

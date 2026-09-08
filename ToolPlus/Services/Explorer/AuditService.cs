@@ -30,6 +30,23 @@ namespace ToolPlus.Services.Explorer
 
         public async Task WriteAsync(AuditLogEntry entry)
         {
+            Stamp(entry);
+            _db.AuditLog.Add(entry);
+            await _db.SaveChangesAsync();
+        }
+
+        public async Task WriteManyAsync(IEnumerable<AuditLogEntry> entries)
+        {
+            var list = entries.ToList();
+            if (list.Count == 0) return;
+
+            list.ForEach(Stamp);
+            _db.AuditLog.AddRange(list);
+            await _db.SaveChangesAsync();
+        }
+
+        private void Stamp(AuditLogEntry entry)
+        {
             if (entry.Time == default) entry.Time = DateTime.Now;
 
             // Filled in here so no call site can forget: with several databases in play, a log that
@@ -38,9 +55,6 @@ namespace ToolPlus.Services.Explorer
             {
                 entry.Module = _module.Current.Key;
             }
-
-            _db.AuditLog.Add(entry);
-            await _db.SaveChangesAsync();
         }
 
         public Task WriteAsync(string type, string? user, string? ip, string? note = null, string? sql = null)
@@ -63,5 +77,12 @@ namespace ToolPlus.Services.Explorer
 
             return await q.OrderByDescending(x => x.Id).Take(take).ToListAsync();
         }
+
+        public async Task<List<AuditLogEntry>> ReadRunAsync(Guid runId, int take)
+            => await _db.AuditLog.AsNoTracking()
+                .Where(x => x.RunId == runId)
+                .OrderBy(x => x.Id)
+                .Take(take)
+                .ToListAsync();
     }
 }

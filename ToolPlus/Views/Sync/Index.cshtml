@@ -1,0 +1,205 @@
+@using ToolPlus.Common
+@using Newtonsoft.Json
+@inject IModuleContext Module
+@{
+    ViewData["Title"] = "Đồng bộ trường từ DB khác";
+    ViewData["Fill"] = true;
+
+    var opt = ViewData["Options"] as ToolPlusOptions;
+    var maxRows = opt?.Sync.MaxRows ?? 5000;
+    var canEdit = Module.CanEdit;
+    var sources = ViewData["Sources"] ?? new object[0];
+}
+
+<div class="subbar">
+    <svg width="15" height="15"><use href="#i-refresh" /></svg>
+    <b style="font-size:13px">Đồng bộ một cột từ database khác</b>
+    <div class="spacer" style="flex:1 1 auto"></div>
+    <span class="hint">
+        Chỉ ghi vào <b>@Module.Current.Name</b> — database nguồn luôn chỉ được đọc
+    </span>
+</div>
+
+<div class="sync-setup" id="setup">
+    <div class="sync-cards">
+
+        @* ------------------------------------------------------------- source *@
+        <div class="sync-card">
+            <div class="sync-card-head">
+                <svg width="14" height="14"><use href="#i-database" /></svg>
+                <span>Nguồn — lấy dữ liệu về</span>
+                <span class="badge">chỉ đọc</span>
+            </div>
+
+            <div class="field">
+                <label class="label" for="srcModule">Database</label>
+                <select class="select" id="srcModule"></select>
+            </div>
+            <div class="field">
+                <label class="label" for="srcTable">Bảng</label>
+                <div class="search-wrap">
+                    <svg width="14" height="14"><use href="#i-search" /></svg>
+                    <input class="input" id="srcTable" placeholder="Chọn database trước…"
+                           autocomplete="off" spellcheck="false" />
+                </div>
+            </div>
+            <div class="field">
+                <label class="label" for="srcMatch">Khóa ghép</label>
+                <div class="search-wrap">
+                    <svg width="14" height="14"><use href="#i-search" /></svg>
+                    <input class="input" id="srcMatch" placeholder="Chọn bảng trước…"
+                           autocomplete="off" spellcheck="false" />
+                </div>
+            </div>
+            <div class="field">
+                <label class="label" for="srcColumn">Cột lấy giá trị</label>
+                <div class="search-wrap">
+                    <svg width="14" height="14"><use href="#i-search" /></svg>
+                    <input class="input" id="srcColumn" placeholder="Chọn bảng trước…"
+                           autocomplete="off" spellcheck="false" />
+                </div>
+            </div>
+        </div>
+
+        <div class="sync-arrow" aria-hidden="true">
+            <svg width="18" height="18"><use href="#i-right" /></svg>
+        </div>
+
+        @* ------------------------------------------------------------- target *@
+        <div class="sync-card sync-card--target">
+            <div class="sync-card-head">
+                <svg width="14" height="14"><use href="#i-save" /></svg>
+                <span>Đích — sẽ được sửa</span>
+                <span class="badge badge--pk">@Module.Current.Name</span>
+            </div>
+
+            <div class="field">
+                <label class="label">Database</label>
+                <input class="input" value="@Module.Current.Name" disabled
+                       title="Luôn là database đang mở. Muốn sửa database khác thì đổi ở thanh trên cùng." />
+            </div>
+            <div class="field">
+                <label class="label" for="dstTable">Bảng</label>
+                <div class="search-wrap">
+                    <svg width="14" height="14"><use href="#i-search" /></svg>
+                    <input class="input" id="dstTable" placeholder="Đang tải…"
+                           autocomplete="off" spellcheck="false" />
+                </div>
+            </div>
+            <div class="field">
+                <label class="label" for="dstMatch">Khóa ghép</label>
+                <div class="search-wrap">
+                    <svg width="14" height="14"><use href="#i-search" /></svg>
+                    <input class="input" id="dstMatch" placeholder="Chọn bảng trước…"
+                           autocomplete="off" spellcheck="false" />
+                </div>
+            </div>
+            <div class="field">
+                <label class="label" for="dstColumn">Cột cần vá</label>
+                <div class="search-wrap">
+                    <svg width="14" height="14"><use href="#i-search" /></svg>
+                    <input class="input" id="dstColumn" placeholder="Chọn bảng trước…"
+                           autocomplete="off" spellcheck="false" />
+                </div>
+            </div>
+            <div class="field">
+                <label class="label" for="dstLabel">
+                    Cột nhận dạng
+                    <span class="hint">— để biết dòng nào là của ai, ghi vào cả nhật ký</span>
+                </label>
+                <div class="search-wrap">
+                    <svg width="14" height="14"><use href="#i-search" /></svg>
+                    <input class="input" id="dstLabel" placeholder="Để trống = tự chọn"
+                           autocomplete="off" spellcheck="false" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sync-modes">
+        <span class="label">Xử lý dòng nào</span>
+        <label class="check">
+            <input type="radio" name="mode" value="0" checked />
+            Điền vào ô đang trống
+        </label>
+        <label class="check" title="Có thể ghi đè dữ liệu đang có — cân nhắc kỹ">
+            <input type="radio" name="mode" value="1" />
+            Điền ô trống <b>và</b> ghi đè ô khác nhau
+        </label>
+        <label class="check">
+            <input type="radio" name="mode" value="2" />
+            Chỉ xem lệch, không ghi
+        </label>
+
+        <div class="sep"></div>
+        <button type="button" class="btn" id="btnAddFilter" title="Thu hẹp phạm vi ở bảng đích">
+            <svg width="14" height="14"><use href="#i-filter" /></svg> Điều kiện
+        </button>
+
+        <div class="spacer" style="flex:1 1 auto"></div>
+        <button type="button" class="btn btn--primary" id="btnPlan">
+            <svg width="14" height="14"><use href="#i-play" /></svg> Xem trước
+        </button>
+    </div>
+
+    <div class="filters" id="filters"></div>
+</div>
+
+<div class="grid-note" id="note" hidden></div>
+
+<div class="sync-chips" id="chips" hidden></div>
+
+<div class="grid-wrap" id="gridWrap"></div>
+
+<div class="savebar" id="applyBar" hidden>
+    <svg width="15" height="15"><use href="#i-alert" /></svg>
+    <span id="applyText"></span>
+    <div class="spacer" style="flex:1 1 auto"></div>
+    <button type="button" class="btn btn--ghost" id="btnNone">Bỏ chọn hết</button>
+    <button type="button" class="btn btn--accent" id="btnApply">
+        <svg width="14" height="14"><use href="#i-save" /></svg> Xem &amp; ghi
+    </button>
+</div>
+
+<div class="foot">
+    <span class="stat">Đã quét <b id="statScanned">0</b></span>
+    <span class="stat">Đã chọn <b id="statPicked">0</b></span>
+    <span class="stat" id="statTime"></span>
+    <div class="spacer"></div>
+    <button type="button" class="btn btn--ghost" id="btnCsv" title="Xuất bảng đối chiếu ra CSV">
+        <svg width="14" height="14"><use href="#i-download" /></svg> CSV
+    </button>
+    <button type="button" class="btn btn--ghost" id="btnSql" title="Xem câu SQL đã chạy">SQL</button>
+</div>
+
+@* ------------------------------------------------------------------- modal *@
+<div class="modal" id="modal">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-head">
+            <svg width="16" height="16"><use href="#i-save" /></svg>
+            <h3 id="modalTitle">Xác nhận</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Đóng">
+                <svg width="15" height="15"><use href="#i-x" /></svg>
+            </button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-foot">
+            <span class="hint" id="modalHint"></span>
+            <div class="spacer"></div>
+            <button type="button" class="btn" data-close>Huỷ</button>
+            <button type="button" class="btn btn--accent" id="modalOk">Ghi</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        window.TP_SYNC = {
+            maxRows: @maxRows,
+            canEdit: @(canEdit ? "true" : "false"),
+            currentModule: '@Module.Current.Key',
+            sources: @Html.Raw(JsonConvert.SerializeObject(sources))
+        };
+    </script>
+    <script src="~/js/pages/sync.js" asp-append-version="true"></script>
+}

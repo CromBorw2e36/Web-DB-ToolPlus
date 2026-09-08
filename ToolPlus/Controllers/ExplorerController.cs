@@ -129,6 +129,26 @@ namespace ToolPlus.Controllers
             }
         }
 
+        /// <summary>
+        /// Every audit row written by one action — the rows of a single field sync, which the
+        /// history list cannot show because a run is far longer than one page of it. Used to build
+        /// an undo script for the whole run.
+        /// </summary>
+        public async Task<IActionResult> LogRun(Guid id)
+        {
+            try
+            {
+                if (id == Guid.Empty) return Error("No run id given");
+
+                // Bounded by what a sync can write in the first place, plus its own summary row.
+                return Success(await _audit.ReadRunAsync(id, _opt.Sync.MaxRows + 1));
+            }
+            catch (Exception ex)
+            {
+                return Error(Explain(ex));
+            }
+        }
+
         /// <summary>Drops the metadata cache after the database structure changed (new column, new table).</summary>
         public IActionResult ClearCache()
         {
