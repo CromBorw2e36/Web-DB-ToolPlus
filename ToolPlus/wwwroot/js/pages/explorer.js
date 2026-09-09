@@ -842,7 +842,7 @@
             return quote(c.Column) + ' = ' + literal(back ? c.From : c.To);
         });
         var guards = changes.map(function (c) {
-            return same(c.Column, back ? c.To : c.From);
+            return sqlEq(c.Column, back ? c.To : c.From);
         });
 
         return 'UPDATE ' + qualify(x.TableName)
@@ -852,11 +852,11 @@
     }
 
     function whereKey(key) {
-        return Object.keys(key).map(function (k) { return same(k, key[k]); }).join('\n   AND ');
+        return Object.keys(key).map(function (k) { return sqlEq(k, key[k]); }).join('\n   AND ');
     }
 
     /** NULL never compares equal to anything, so it needs IS rather than =. */
-    function same(column, value) {
+    function sqlEq(column, value) {
         return value === null || value === undefined
             ? quote(column) + ' IS NULL'
             : quote(column) + ' = ' + literal(value);
