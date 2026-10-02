@@ -12,6 +12,9 @@
     <script>
         // Apply the theme before the first paint, to avoid a light/dark flash.
         (function () { try { var t = localStorage.getItem('tp-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) { } })();
+        // Sign-in and a forced password change belong to the whole window, not to one workspace tab:
+        // signing in inside a tab would leave every other tab still pointing at the dead session.
+        (function () { try { if (window.self !== window.top && /^\/login(\/(index|doimatkhau)?)?\/?$/i.test(location.pathname)) window.top.location.replace(location.href); } catch (e) { } })();
     </script>
 </head>
 <body>

@@ -1323,3 +1323,99 @@ td .st { font-family: var(--sans); }
     .sync-cards { grid-template-columns: 1fr; }
     .sync-arrow { transform: rotate(90deg); }
 }
+
+/* ------------------------------------------------------------ tab workspace */
+
+/* A page shown inside a workspace tab: the workspace already draws the topbar, menu and banner. */
+:root[data-embed] .topbar,
+:root[data-embed] .nav,
+:root[data-embed] .nav-scrim,
+:root[data-embed] .banner { display: none !important; }
+
+.topbar-tabs svg { flex: 0 0 auto; }
+
+.ws { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
+.ws-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: var(--s1);
+    padding: var(--s1) var(--s2) 0;
+    background: var(--surface-3);
+    border-bottom: 1px solid var(--border);
+}
+
+.ws-tabs { flex: 0 1 auto; min-width: 0; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.ws-tabs::-webkit-scrollbar { display: none; }
+
+.ws-tab {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 240px;
+    height: 32px;
+    padding: 0 4px 0 var(--s3);
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: var(--r2) var(--r2) 0 0;
+    color: var(--fg-muted);
+    font-size: 12.5px;
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--t), color var(--t);
+}
+.ws-tab:hover { background: var(--surface-2); color: var(--fg); }
+.ws-tab[aria-selected="true"] {
+    position: relative;
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--fg);
+    font-weight: 500;
+}
+/* Covers the bar's bottom border under the active tab, so tab and page read as one piece. */
+.ws-tab[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--surface); }
+.ws-tab[aria-selected="true"]::before { content: ""; position: absolute; left: -1px; right: -1px; top: -1px; height: 2px; border-radius: var(--r2) var(--r2) 0 0; background: var(--accent); }
+.ws-tab:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.ws-tab.is-dragging { opacity: .45; }
+
+.ws-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ws-mod {
+    flex: 0 0 auto;
+    padding: 0 5px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    font: 500 10px/16px var(--mono);
+    color: var(--fg-muted);
+}
+.ws-tab[aria-selected="true"] .ws-mod { border-color: var(--accent-line); color: var(--accent); background: var(--accent-soft); }
+
+.ws-spin { flex: 0 0 10px; width: 10px; height: 10px; border: 1.5px solid var(--border-strong); border-top-color: var(--accent); border-radius: 999px; animation: spin 620ms linear infinite; }
+
+.ws-close {
+    flex: 0 0 22px;
+    display: grid;
+    place-items: center;
+    width: 22px; height: 22px;
+    border: 0;
+    border-radius: var(--r1);
+    background: transparent;
+    color: var(--fg-subtle);
+    cursor: pointer;
+}
+.ws-close:hover { background: var(--surface-3); color: var(--fg); }
+
+.ws-new { flex: 0 0 28px; width: 28px; height: 28px; margin-bottom: 2px; }
+
+.ws-frames { flex: 1 1 auto; min-height: 0; position: relative; background: var(--bg); }
+/* Hidden with visibility, not display: a tab loading in the background still gets its real size. */
+.ws-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); visibility: hidden; }
+.ws-frame.is-active { visibility: visible; }
+
+@media (max-width: 760px) {
+    .topbar-tabs span { display: none; }
+    .topbar-tabs { padding: 0 var(--s2); }
+    .ws-tab { max-width: 160px; }
+}

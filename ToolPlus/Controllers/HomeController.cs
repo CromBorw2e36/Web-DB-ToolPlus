@@ -22,6 +22,20 @@ public class HomeController : BaseController
         return View();
     }
 
+    /// <summary>
+    /// Workspace — several pages open side by side as in-app tabs. The page itself is only a shell:
+    /// every tab is an iframe of an ordinary page, which does its own authorisation, so this reads
+    /// no business database and needs no module permission either.
+    /// </summary>
+    [TokenCheck(SkipModuleCheck = true)]
+    public IActionResult Tabs()
+    {
+        ViewData["Title"] = "Nhiều tab";
+        ViewData["Fill"] = true;
+        ViewData["Workspace"] = true;
+        return View();
+    }
+
     [TokenCheck(SkipModuleCheck = true)]
     public IActionResult ThongTinPhien()
     {

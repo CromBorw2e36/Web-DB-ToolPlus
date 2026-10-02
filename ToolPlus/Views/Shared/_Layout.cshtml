@@ -20,9 +20,14 @@
 
     // A page that must fill the viewport and scroll internally (e.g. Explorer) sets ViewData["Fill"] = true.
     var fill = ViewData["Fill"] as bool? ?? false;
+
+    // The tab workspace (/home/tabs) is the one page that hosts other pages instead of being one.
+    var workspace = ViewData["Workspace"] as bool? ?? false;
+    var tabsUrl = Module.Url("/home/tabs");
+    var here = Context.Request.Path.Value + Context.Request.QueryString.Value;
 }
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" data-workspace="@(workspace ? "" : null)">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -37,6 +42,12 @@
     <script>
         // Apply theme and sidebar state before the first paint, to avoid a flash.
         (function () {
+            // Inside a workspace tab: the workspace already draws the topbar and the menu, so this
+            // page hides its own (CSS keys off data-embed). A cross-origin parent throws — still a frame.
+            var embed;
+            try { embed = window.self !== window.top; } catch (e) { embed = true; }
+            if (embed) document.documentElement.dataset.embed = '';
+
             try {
                 var t = localStorage.getItem('tp-theme');
                 if (t) document.documentElement.dataset.theme = t;
@@ -44,6 +55,20 @@
             } catch (e) { }
         })();
     </script>
+    @if (!workspace)
+    {
+        <script>
+            // Tab mode is remembered per browser: once on, any page opened on its own (a bookmark, a
+            // pasted link) becomes a tab of the workspace instead. Done before <body> is parsed, so the
+            // page's own scripts never start — they would fire their first queries for nothing.
+            (function () {
+                try {
+                    if (window.self !== window.top || localStorage.getItem('tp-tabs') !== 'on') return;
+                    location.replace('@tabsUrl?open=' + encodeURIComponent(location.pathname + location.search + location.hash));
+                } catch (e) { }
+            })();
+        </script>
+    }
 </head>
 <body>
     <partial name="_Icons" />
@@ -78,6 +103,21 @@
             @await RenderSectionAsync("Topbar", required: false)
 
             <div class="spacer"></div>
+
+            @if (workspace)
+            {
+                <button type="button" class="btn btn--ghost topbar-tabs" id="tabsExit"
+                        title="Tắt chế độ nhiều tab — về lại một trang mỗi cửa sổ, mở trang của tab đang xem">
+                    <svg width="14" height="14"><use href="#i-tabs" /></svg><span>Thoát nhiều tab</span>
+                </button>
+            }
+            else
+            {
+                <a class="btn btn--ghost topbar-tabs" id="tabsEnter" href="@tabsUrl?open=@Uri.EscapeDataString(here)"
+                   title="Mở nhiều trang trong cùng một cửa sổ, chuyển qua lại bằng tab">
+                    <svg width="14" height="14"><use href="#i-tabs" /></svg><span>Nhiều tab</span>
+                </a>
+            }
 
             <button type="button" class="icon-btn" id="themeToggle" title="Đổi sáng/tối" aria-label="Đổi sáng/tối">
                 <svg width="17" height="17" data-theme-icon><use href="#i-moon" /></svg>

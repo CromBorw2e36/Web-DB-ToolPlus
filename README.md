@@ -91,6 +91,7 @@ name means signing in here logs you out there.
 | Explorer `/explorer` | Search by keyword or condition, edit in place, SELECT console, history |
 | Field sync `/sync` | Repair one column from another module's database, row by row, after a diff |
 | Users `/user` | (Admin) ToolPlus accounts and their permission on each module |
+| Tabs `/home/tabs` | Several of the pages above open side by side in one window |
 
 ### Own store (SQLite)
 
@@ -234,6 +235,22 @@ The two databases are usually on different servers, so there is no cross-databas
 temp table: the candidate rows are read from the target, their match values are looked up in the
 source 200 at a time, and the comparison happens in memory. A run is capped at `Sync:MaxRows`
 rows and says so when it hits the cap.
+
+### Tabs (`/<module>/home/tabs`)
+
+`Nhiều tab` in the topbar turns tab mode on for this browser: pages open as in-app tabs instead of
+one page per browser tab, and the open tabs survive a reload. Each tab is an iframe of an ordinary
+page, which hides its own topbar and menu, so every page works in a tab unchanged and keeps its
+state while another tab is in front.
+
+- **Menu click** opens in the current tab; **Ctrl/⌘-click or middle-click** (menu or any link
+  inside a page) opens a new tab. Middle-click on a tab closes it; tabs can be dragged to reorder.
+- **Tabs can be on different modules.** The module switch always shows the module of the tab in
+  front and changes only that tab; each tab is labelled with its module once they differ.
+- **Restored tabs load only when first shown**, so a reload does not fire every saved page's
+  queries at once. Closing a tab with unsaved edits asks first.
+- While tab mode is on, a page opened directly (a bookmark, a pasted link) becomes a tab of the
+  workspace. `Thoát nhiều tab` turns it off.
 
 ### Editing data
 

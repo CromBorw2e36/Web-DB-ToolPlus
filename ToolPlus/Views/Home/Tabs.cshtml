@@ -1,0 +1,21 @@
+@using ToolPlus.Common
+@using ToolPlus.Services.Interface
+@inject IModuleContext Module
+@{
+    ViewData["Title"] = "Nhiều tab";
+}
+
+@* Tabs and their iframes are built by tabs.js from the list saved in localStorage. *@
+<div class="ws" id="ws" data-home="@Module.Url("/home/index")">
+    <div class="ws-bar">
+        <div class="ws-tabs" id="wsTabs" role="tablist" aria-label="Các tab đang mở"></div>
+        <button type="button" class="icon-btn ws-new" id="wsNew" title="Tab mới (trang chủ)" aria-label="Tab mới">
+            <svg width="15" height="15"><use href="#i-plus" /></svg>
+        </button>
+    </div>
+    <div class="ws-frames" id="wsFrames"></div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/tabs.js" asp-append-version="true"></script>
+}

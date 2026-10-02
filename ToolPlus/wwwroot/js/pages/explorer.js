@@ -6,6 +6,7 @@
 
     var CFG = window.TP_CONFIG || { maxRows: 500, allowEdit: false };
     var LAST_TABLE = 'tp-last-table';
+    var BASE_TITLE = document.title;
 
     var OPS = [
         { v: '=', t: '=' }, { v: '<>', t: '≠' },
@@ -134,7 +135,9 @@
             renderTableList();
             if (force) TP.toast('Database structure refreshed', 'ok');
 
-            var last = localStorage.getItem(LAST_TABLE);
+            // ?table= wins over the last table used: with several workspace tabs on Explorer, each one
+            // must come back on its own table, not all of them on whichever was picked last.
+            var last = new URLSearchParams(location.search).get('table') || localStorage.getItem(LAST_TABLE);
             if (!S.table && last && S.tables.some(function (t) { return t.Full === last; })) {
                 selectTable(last);
             }
@@ -171,6 +174,15 @@
         S.dirty.clear();
         S.rows = [];
         localStorage.setItem(LAST_TABLE, full);
+
+        // The table goes into the URL and the title, so a workspace tab (or a browser tab, or a
+        // bookmark) is named after the table it shows and reopens on it.
+        var url = new URL(location.href);
+        url.searchParams.set('table', full);
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+        var entry = S.tables.filter(function (t) { return t.Full === full; })[0];
+        document.title = (entry ? entry.Name : full) + ' · ' + BASE_TITLE;
+
         renderTableList();
         renderSaveBar();
         $('filters').innerHTML = '';

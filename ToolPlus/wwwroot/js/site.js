@@ -74,7 +74,11 @@
         }
 
         if (json.Status === 'UsernotFound') {
-            location.href = '/login/index?returnUrl=' + encodeURIComponent(location.pathname + location.search);
+            // From a workspace tab, send the whole window — and come back to the workspace, not to
+            // this one tab's page shown full-window.
+            var w = window;
+            try { if (window.top.location.origin === location.origin) w = window.top; } catch (e) { }
+            w.location.href = '/login/index?returnUrl=' + encodeURIComponent(w.location.pathname + w.location.search);
             throw new Error('Session expired');
         }
         if (json.Status !== 'OK') {
@@ -322,7 +326,8 @@
        (a blueprint id…) are dropped: that id belongs to the old module and would not resolve here. */
     function initModuleSwitch() {
         var sel = document.getElementById('moduleSwitch');
-        if (!sel) return;
+        // In the workspace the switch changes the active tab's module, not this page — tabs.js owns it.
+        if (!sel || 'workspace' in root.dataset) return;
 
         var curModule = document.documentElement.dataset.module;
 
@@ -351,11 +356,40 @@
         }
     }
 
+    /* Inside a workspace tab, Ctrl/⌘-click or middle-click on a link opens another workspace tab
+       instead of a browser tab — a browser tab would land in tab mode too and open a second
+       workspace window competing for the same saved tab list. */
+    function initEmbedLinks() {
+        if (!('embed' in root.dataset)) return;
+
+        function handle(e) {
+            if (!(e.ctrlKey || e.metaKey || e.button === 1) || e.defaultPrevented) return;
+            var a = e.target.closest && e.target.closest('a[href]');
+            if (!a || a.hasAttribute('download') || a.origin !== location.origin) return;
+            if (a.pathname.indexOf('/login/') === 0) return;
+
+            e.preventDefault();
+            window.parent.postMessage({ tp: 'open', url: a.pathname + a.search + a.hash }, location.origin);
+        }
+
+        document.addEventListener('click', handle);
+        document.addEventListener('auxclick', handle);
+    }
+
+    // The theme toggle lives in the workspace's topbar; every tab (and every other window) is a
+    // separate document, which only learns about the change through the storage event.
+    window.addEventListener('storage', function (e) {
+        if (e.key !== 'tp-theme') return;
+        if (e.newValue) root.dataset.theme = e.newValue; else delete root.dataset.theme;
+        paintThemeIcon();
+    });
+
     document.addEventListener('DOMContentLoaded', function () {
         paintThemeIcon();
         var t = document.getElementById('themeToggle');
         if (t) t.addEventListener('click', toggleTheme);
         initNav();
         initModuleSwitch();
+        initEmbedLinks();
     });
 })();
