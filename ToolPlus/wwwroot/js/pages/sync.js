@@ -243,7 +243,7 @@
 
         el.placeholder = 'Đang tải danh sách bảng…';
         try {
-            var data = await TP.get('/sync/tables' + (moduleKey ? '?module=' + encodeURIComponent(moduleKey) : ''));
+            var data = await TP.get('/sync/tables' + (moduleKey ? '?source=' + encodeURIComponent(moduleKey) : ''));
 
             // A view can supply values but can never be written to, so it is offered as a source only.
             var tables = data.filter(function (t) { return isSrc || !t.IsView; });
@@ -282,7 +282,7 @@
 
         try {
             var data = await TP.get('/sync/columns?table=' + encodeURIComponent(table)
-                + (moduleKey ? '&module=' + encodeURIComponent(moduleKey) : ''));
+                + (moduleKey ? '&source=' + encodeURIComponent(moduleKey) : ''));
 
             var cols = data.Columns.filter(function (c) { return !c.IsSkipped; });
             if (isSrc) S.srcColumns = cols; else S.dstColumns = cols;
