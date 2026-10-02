@@ -90,6 +90,7 @@ name means signing in here logs you out there.
 | Blueprints `/blueprint` | Drop tables on a canvas, link field to field, save and reuse |
 | Explorer `/explorer` | Search by keyword or condition, edit in place, SELECT console, history |
 | Field sync `/sync` | Repair one column from another module's database, row by row, after a diff |
+| Table copy `/copy` | Compare whole tables with another module's database and pull over the differences you choose |
 | Users `/user` | (Admin) ToolPlus accounts and their permission on each module |
 | Tabs `/home/tabs` | Several of the pages above open side by side in one window |
 
@@ -236,6 +237,61 @@ temp table: the candidate rows are read from the target, their match values are 
 source 200 at a time, and the comparison happens in memory. A run is capped at `Sync:MaxRows`
 rows and says so when it hits the cap.
 
+### Table copy (`/<module>/copy`)
+
+For keeping a second database — a backup, a test or reporting copy — in line with the live one
+without a full backup and restore. Open the page **on the database to be written** (the copy),
+pick the source database (the live one, only ever read), tick the tables, and compare.
+
+Rows are paired by primary key. For each table you get:
+
+| Group | Meaning | Written as |
+|---|---|---|
+| `Thiếu ở đích` | In the source, missing here | `INSERT` (bulk) |
+| `Khác nhau` | In both, at least one column differs — shown column by column | `UPDATE` of the differing columns only |
+| `Thừa ở đích` | Here, but no longer in the source | `DELETE` — never on by default |
+| `Giống` | Identical | nothing |
+
+Then decide what goes over:
+
+- **By kind, per table** — the `Thêm` / `Cập nhật` / `Xoá` switches in the summary. This writes
+  *every* row of those kinds, including rows beyond the ones listed (the grid lists at most
+  `Copy:MaxListedRows` of each kind).
+- **By hand** — tick or untick single rows in the grid. That table then writes only the ticked
+  rows, and says so (`chọn tay`).
+
+How it is kept safe:
+
+- **The module must opt in.** Writing is refused unless the module in the URL has
+  `ToolPlus:Modules:<name>:CopyTarget = true`. Without it the page still compares. This is what
+  stops the costly mistake: opening the page on the live database and pulling a stale backup over
+  it.
+- The target is always the module in the URL; the source is only read, and read permission on it
+  is checked explicitly (same rule as field sync). Source and target cannot be the same module.
+- **Apply never trusts the browser.** The request names kinds, or primary keys — never values.
+  The server compares again and reads the values from the source at write time.
+- Tables are written in two passes ordered by the target's foreign keys: deletes children-first,
+  then inserts and updates parents-first, so every commit leaves the keys satisfied.
+- One transaction per chunk (`Copy:ChunkSize`). Each `UPDATE` / `DELETE` is checked with
+  `@@ROWCOUNT` to have hit exactly one row, or its chunk is rolled back and the run stops; chunks
+  committed before stay committed, and running again simply continues.
+- Inserts use `SqlBulkCopy` with `KeepIdentity`, `KeepNulls` and `CheckConstraints` — the last one
+  because without it SQL Server marks the table's foreign keys as not trusted, a metadata change
+  this tool must not make. Bulk inserts do not fire triggers (a restore would not either);
+  updates and deletes do.
+- A delete pass over a whole table is refused while the source table is empty — the signature of
+  pointing at the wrong database. Deleting also requires typing the module name to confirm.
+- Primary-key columns with a different collation on each side are refused: both sides are paged by
+  key range, and two orderings that disagree would make rows look missing.
+- Audit: every updated row is logged as an ordinary `update` entry (so Explorer's undo script works
+  on it), every deleted row as `copy-delete` with the whole row, and each step writes a `copy`
+  summary; one `RunId` ties the run together. Inserted rows are counted, not logged one by one.
+
+Work is done in steps of `Copy:StepSeconds`: the browser keeps calling with a cursor, which shows
+progress on large tables and keeps any single request short enough not to be cut by a proxy.
+Tables over `Copy:MaxRowsPerTable` rows are refused — at that size a backup/restore is the right
+tool.
+
 ### Tabs (`/<module>/home/tabs`)
 
 `Nhiều tab` in the topbar turns tab mode on for this browser: pages open as in-app tabs instead of
@@ -284,13 +340,18 @@ Special input values:
 | Key | Meaning |
 |---|---|
 | `Bootstrap` | Administrator created on first run (`Username` / `Password` / `FullName`). Only effective while `ToolUser` is empty |
-| `Modules` | Per-module extras: `Name`, `Icon`, `AllowEdit`, `Enabled` |
+| `Modules` | Per-module extras: `Name`, `Icon`, `AllowEdit`, `Enabled`, `CopyTarget` |
 | `DefaultModule` | Module opened when the URL does not name one. Empty = first connection string |
 | `SessionDays` | How many days a session lives before requiring a fresh login |
 | `AllowEdit` | `false` = the whole instance is read-only |
 | `MaxRows` | Cap on rows returned per request |
 | `Sync:MaxRows` | Rows compared in one field-sync run (default 5000) — separate from `MaxRows`, which caps what a grid shows |
 | `Sync:BatchSize` | Rows written per transaction during a field sync (default 100) |
+| `Modules:<name>:CopyTarget` | `true` = tables may be copied INTO this module from another one (`/copy`). Off by default |
+| `Copy:ChunkSize` | Rows read per page from each side and written per transaction (default 1000) |
+| `Copy:StepSeconds` | How long one request works before handing a cursor back (default 15) |
+| `Copy:MaxListedRows` | Differing rows listed per kind and table (default 500) |
+| `Copy:MaxRowsPerTable` | Tables with more rows than this are refused (default 5 000 000) |
 | `SearchCollation` | Collation used for accent-insensitive search; `""` keeps accents significant |
 | `QueryTimeoutSeconds` | Statement timeout |
 | `CookieName` | Session cookie; keep it distinct from other apps on the same host |
@@ -316,6 +377,8 @@ Controller ──> Service ──┬──> IModuleContext  (SQL Server of the m
 - `SyncService` — compares one column across two modules and writes the rows the user picked;
   reaches the second database through `IModuleScopeFactory`, which is the only way to get a
   connection to a module other than the one in the URL
+- `TableCopyService` — compares whole tables across two modules by primary key and copies the
+  chosen differences into the module in the URL
 - `AuditService` — writes and reads the log in SQLite
 
 The frontend uses no third-party libraries: `wwwroot/css/toolplus.css` +
@@ -335,6 +398,10 @@ The frontend uses no third-party libraries: `wwwroot/css/toolplus.css` +
   "changed since the preview" and skip it. Filling empty cells is unaffected.
 - Field sync handles one column per run, and has no saved presets — the same repair next month
   has to be configured again.
+- Table copy cannot handle `geography`, `geometry` or `hierarchyid` columns (a table holding one is
+  refused), pairs rows only by primary key, and has no per-table filter. Its undo script covers
+  updated rows only; inserted rows are not listed one by one, deleted rows are kept in the log but
+  not turned into a script.
 - Undo is a script to copy into SSMS, not a button: ToolPlus does not run the reverse itself.
 - The UI is Vietnamese only — no localisation layer.
 

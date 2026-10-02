@@ -4,6 +4,7 @@ using Newtonsoft.Json.Serialization;
 using ToolPlus.Common;
 using ToolPlus.Models.ToolEntity;
 using ToolPlus.Services.Blueprints;
+using ToolPlus.Services.Copy;
 using ToolPlus.Services.Explorer;
 using ToolPlus.Services.Interface;
 using ToolPlus.Services.Sync;
@@ -58,6 +59,7 @@ builder.Services.AddScoped<IExplorerService, ExplorerService>();
 builder.Services.AddScoped<IBlueprintService, BlueprintService>();
 builder.Services.AddScoped<IBlueprintRunner, BlueprintRunner>();
 builder.Services.AddScoped<ISyncService, SyncService>();
+builder.Services.AddScoped<ITableCopyService, TableCopyService>();
 
 var app = builder.Build();
 

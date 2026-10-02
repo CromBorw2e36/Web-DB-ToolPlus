@@ -70,6 +70,11 @@ namespace ToolPlus.Common
                     {
                         Text = "Đồng bộ trường từ DB khác", Url = "/sync/index", Icon = "i-refresh",
                         Note = "So một cột với database khác rồi điền lại những dòng đang trống hoặc sai."
+                    },
+                    new MenuEntry
+                    {
+                        Text = "Chép bảng từ DB khác", Url = "/copy/index", Icon = "i-download",
+                        Note = "So sánh dữ liệu từng bảng với database khác rồi kéo phần thiếu hoặc lệch về đây — thay cho backup/restore."
                     }
                 }
             },

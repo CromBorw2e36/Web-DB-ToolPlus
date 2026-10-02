@@ -132,6 +132,7 @@ ORDER BY c.column_id";
                         IsNullable = reader.GetBoolean(2),
                         MaxLength = maxLength < 0 ? -1 : (unicode ? maxLength / 2 : maxLength),
                         IsPrimaryKey = reader.GetBoolean(6),
+                        IsIdentity = reader.GetBoolean(4),
                         IsReadOnly = reader.GetBoolean(4) || reader.GetBoolean(5)
                                      || type is "timestamp" or "rowversion",
                         IsSkipped = SkipTypes.Contains(type),

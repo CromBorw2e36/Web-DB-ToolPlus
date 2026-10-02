@@ -1319,9 +1319,58 @@ td .st { font-family: var(--sans); }
     color: var(--fg-muted);
 }
 
+/* --------------------------------------------------------------- table copy */
+
+.copy-setup { flex: 0 0 auto; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+
+.copy-pick { display: flex; flex-direction: column; gap: var(--s2); padding: 0 var(--s3) var(--s3); }
+.copy-pick-bar { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+
+.copy-list {
+    max-height: 190px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--r2);
+    background: var(--surface);
+}
+.copy-item {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: 3px var(--s2);
+    border-bottom: 1px solid var(--border);
+    font: 400 12px/1.6 var(--mono);
+    cursor: pointer;
+}
+.copy-item:last-child { border-bottom: 0; }
+.copy-item:hover { background: var(--surface-2); }
+.copy-item input { width: 14px; height: 14px; accent-color: var(--primary); }
+/* A table that cannot be copied stays listed, so its absence is explained rather than a mystery. */
+.copy-item.is-off { opacity: .55; cursor: default; }
+.copy-item .name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy-item .rows { font: 400 11px/1.6 var(--sans); color: var(--fg-subtle); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.copy-item .rows.is-diff { color: var(--warn); }
+
+/* The per-table summary sits above the row grid and must never push it off screen. */
+.copy-sum { flex: 0 0 auto; max-height: 34vh; overflow: auto; border-bottom: 1px solid var(--border-strong); background: var(--surface); }
+.copy-sum tr[data-t] { cursor: pointer; }
+.copy-sum tr.is-current td { background: var(--accent-soft) !important; }
+table.grid td.num, table.grid th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.copy-opts { display: inline-flex; align-items: center; gap: var(--s3); font-family: var(--sans); }
+.copy-opts label { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; cursor: pointer; }
+.copy-opts input { width: 13px; height: 13px; accent-color: var(--primary); }
+.copy-opts label.is-danger { color: var(--danger); }
+.copy-opts label.is-danger input { accent-color: var(--danger); }
+
+td.chg { cursor: zoom-in; font-size: 11.5px; }
+td.chg b { font-weight: 500; color: var(--fg-muted); }
+td.chg .from { color: var(--fg-subtle); text-decoration: line-through; }
+
 @media (max-width: 860px) {
     .sync-cards { grid-template-columns: 1fr; }
     .sync-arrow { transform: rotate(90deg); }
+    .copy-sum { max-height: 45vh; }
 }
 
 /* ------------------------------------------------------------ tab workspace */

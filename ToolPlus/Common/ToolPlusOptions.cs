@@ -49,6 +49,28 @@ namespace ToolPlus.Common
         public bool AllowEdit { get; set; } = true;
 
         public SyncOptions Sync { get; set; } = new();
+
+        public CopyOptions Copy { get; set; } = new();
+    }
+
+    /// <summary>Limits for the table-copy page (/&lt;module&gt;/copy).</summary>
+    public class CopyOptions
+    {
+        /// <summary>Rows read per page from each side, and written per transaction.</summary>
+        public int ChunkSize { get; set; } = 1000;
+
+        /// <summary>
+        /// How long one request keeps working before handing a cursor back to the browser. A big
+        /// table takes minutes; one long request would be cut by whatever proxy sits in front of this
+        /// tool, and the page would have no progress to show.
+        /// </summary>
+        public int StepSeconds { get; set; } = 15;
+
+        /// <summary>Differing rows listed per kind (missing / changed / extra) for the user to tick.</summary>
+        public int MaxListedRows { get; set; } = 500;
+
+        /// <summary>Tables bigger than this (approximate count, either side) are refused.</summary>
+        public long MaxRowsPerTable { get; set; } = 5_000_000;
     }
 
     /// <summary>Limits for the field-sync page (/&lt;module&gt;/sync).</summary>

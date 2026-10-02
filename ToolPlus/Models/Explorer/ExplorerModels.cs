@@ -23,6 +23,12 @@ namespace ToolPlus.Models.Explorer
         /// <summary>identity / computed / rowversion — shown, but not editable.</summary>
         public bool IsReadOnly { get; set; }
 
+        /// <summary>
+        /// Identity column. Also counted in <see cref="IsReadOnly"/>, but unlike a computed column it
+        /// CAN be written on insert (IDENTITY_INSERT) — which a table copy needs to keep the keys.
+        /// </summary>
+        public bool IsIdentity { get; set; }
+
         /// <summary>Binary or spatial type — never SELECTed, as it means nothing in a grid.</summary>
         public bool IsSkipped { get; set; }
 

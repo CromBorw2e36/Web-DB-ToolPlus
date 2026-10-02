@@ -26,6 +26,13 @@ namespace ToolPlus.Common
         /// switching it off anywhere makes the module read-only.
         /// </summary>
         public bool AllowEdit { get; init; } = true;
+
+        /// <summary>
+        /// Whether whole tables may be copied INTO this module from another one (/copy). Off by
+        /// default: that page inserts, overwrites and can delete in bulk, and the mistake it exists
+        /// to prevent is opening it on the live database and pulling a stale backup over it.
+        /// </summary>
+        public bool CopyTarget { get; init; }
     }
 
     /// <summary>Optional extras for one module, bound from ToolPlus:Modules:&lt;key&gt;.</summary>
@@ -34,6 +41,9 @@ namespace ToolPlus.Common
         public string Name { get; set; } = "";
         public string Icon { get; set; } = "";
         public bool AllowEdit { get; set; } = true;
+
+        /// <summary>true = tables may be copied into this module from another one. See ModuleDefinition.</summary>
+        public bool CopyTarget { get; set; }
 
         /// <summary>false = the connection string exists but is not turned into a module.</summary>
         public bool Enabled { get; set; } = true;
@@ -52,7 +62,7 @@ namespace ToolPlus.Common
         /// Controller names cannot be used as module keys: "/explorer/index" would be ambiguous
         /// between "module explorer" and "controller Explorer". Add new controllers here.
         /// </summary>
-        private static readonly string[] Reserved = { "home", "login", "explorer", "blueprint", "user", "sync" };
+        private static readonly string[] Reserved = { "home", "login", "explorer", "blueprint", "user", "sync", "copy" };
 
         public IReadOnlyList<ModuleDefinition> All { get; }
 
@@ -113,7 +123,8 @@ namespace ToolPlus.Common
                     ConnectionString = entry.Value!,
                     Name = meta.Name.IsEmpty() ? entry.Key : meta.Name,
                     Icon = meta.Icon.IsEmpty() ? "i-database" : meta.Icon,
-                    AllowEdit = meta.AllowEdit
+                    AllowEdit = meta.AllowEdit,
+                    CopyTarget = meta.CopyTarget
                 });
             }
 
