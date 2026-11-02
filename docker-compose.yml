@@ -4,9 +4,10 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      # Host port only - override with TOOLPLUS_PORT in a .env file. The container
-      # always listens on 8300 internally (see Dockerfile).
-      - "${TOOLPLUS_PORT:-8300}:8300"
+      # Bound to loopback so the tool is not reachable from the network - put a reverse
+      # proxy in front if others need it. Host port only - override with TOOLPLUS_PORT in
+      # a .env file. The container always listens on 8300 internally (see Dockerfile).
+      - "127.0.0.1:${TOOLPLUS_PORT:-8300}:8300"
     volumes:
       # Secrets belong outside the image - copy ToolPlus/appsettings.local.example.json to
       # ToolPlus/appsettings.local.json and fill in real connection strings first.

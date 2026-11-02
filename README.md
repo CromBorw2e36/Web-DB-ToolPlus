@@ -30,6 +30,8 @@ docker compose up --build                                                    # h
 `appsettings.local.json` and the `App_Data` SQLite store are mounted at runtime (see
 `docker-compose.yml`), never baked into the image. The container listens on `8300`; override
 the host-side port with a `.env` file (`TOOLPLUS_PORT=8081`) instead of editing the compose file.
+The port is published on `127.0.0.1` only, so the tool is not reachable from other machines —
+put a reverse proxy in front of it if it has to be.
 
 ## Modules — one connection string is one module
 
